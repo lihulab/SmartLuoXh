@@ -5,13 +5,10 @@ struct PID Angle_PID;
 int main(void)
 {
 	pll_init_128M();
-	init_PIT0();
-	init_ADC();
-	UART_INIT(0,128000000,256000,1);
-	Coder_init();
+	UART_INIT(0,128000000,115200,0);
+	Init_OV7620_DMA();
 	EnableInterrupts;
 	while(1)
 	{
-		UART_Sendint(0,(int)Car_speed);
 	}
 }

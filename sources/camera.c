@@ -3,17 +3,6 @@
  *
  */
 #include "main.h"
-#include "FX_UART_driver.h"
-#define ROW 30
-#define COLUMN_RAW 320
-#define COLUMN 80
-#define EnableInterrupts asm { move.w SR,D0; andi.l #0xF8FF,D0; move.w D0,SR;  }
-#define SDA_H MCF_GPIO_PORTAS|=MCF_GPIO_PORTAS_PORTAS1
-#define SDA_L MCF_GPIO_PORTAS&=~MCF_GPIO_PORTAS_PORTAS1
-#define SCL_H MCF_GPIO_PORTAS|=MCF_GPIO_PORTAS_PORTAS0
-#define SCL_L MCF_GPIO_PORTAS&=~MCF_GPIO_PORTAS_PORTAS0
-#define SDA_OUT MCF_GPIO_DDRAS|=MCF_GPIO_DDRAS_DDRAS1
-#define SDA_IN MCF_GPIO_DDRAS &= (~MCF_GPIO_DDRAS_DDRAS1)
 unsigned char Image_Data[ROW][COLUMN_RAW];
 unsigned char Image_bw[ROW][COLUMN];
 unsigned char Image_Edge[ROW][2];
@@ -188,8 +177,8 @@ void EPORT_init(void)
 				   &~MCF_INTC_IMRL_INT_MASK3;
 				   
 	//设置中断优先级
-	MCF_INTC0_ICR01=MCF_INTC_ICR_IP(2)+MCF_INTC_ICR_IL(4);
-	MCF_INTC0_ICR03=MCF_INTC_ICR_IP(3)+MCF_INTC_ICR_IL(4);
+	MCF_INTC0_ICR01=MCF_INTC_ICR_IP(3)+MCF_INTC_ICR_IL(4);
+	MCF_INTC0_ICR03=MCF_INTC_ICR_IP(2)+MCF_INTC_ICR_IL(4);
 	//MCF_INTC0_ICR05=MCF_INTC_ICR_IP(4)+MCF_INTC_ICR_IL(4);
 	//MCF_INTC0_ICR07=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(4);
 }
@@ -213,7 +202,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 {
 	MCF_EPORT_EPFR = MCF_EPORT_EPFR_EPF3;           //清除标志位
 	HREF_Flag = 1;
-	if((Line_C%4)==1)
+	if((Line_C%8)==1)
 	{
 		MCF_DMA_BCR(0)=COLUMN_RAW;
 		MCF_DMA_DAR(0)=(uint32)Image_Data[Line_ROW];
@@ -221,7 +210,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 
 	}
 	Line_C++;
-	if(Line_C==120)
+	if(Line_C==240)
 	{
 		MCF_EPORT_EPIER&=~MCF_EPORT_EPIER_EPIE3;
 	}
@@ -237,9 +226,9 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		Dynamic_threshold();
 		Image_binaryzation();
 		Edge_detect();
-		test();
-		//UART_SendBWImage();
-		UART_SendImage();
+		//test();
+		UART_SendBWImage();
+		//UART_SendImage();
 	}
 }
 void SCCB_Init(void)
@@ -366,8 +355,8 @@ void Init_OV7620_DMA()
 	MCF_DMA_DSR(0) |= MCF_DMA_DSR_DONE;//清空传输完成标志位
 	MCF_SCM_MPR = MCF_SCM_MPR_MPR(0x05);
 	MCF_SCM_DMAREQC = MCF_SCM_DMAREQC_DMAC0(0x04);//设定DMA0为DTIM0触发
-	MCF_DMA_SAR(0)=(uint32)0x40100000;//源地址为PTE
-	MCF_DMA_DAR(0)=(uint32)Image_Data[1];//目的地址为图像数组
+	MCF_DMA_SAR(0)=(uint32)0x40100030;//源地址为PTE
+	MCF_DMA_DAR(0)=(uint32)Image_Data[0];//目的地址为图像数组
 	MCF_DMA_BCR(0)=320;//传输长度为每行的长度，这里是320个像素
 	MCF_DMA_DCR(0)=MCF_DMA_DCR_INT//开启DMA中断
 				|MCF_DMA_DCR_SSIZE(1)

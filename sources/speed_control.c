@@ -1,8 +1,8 @@
 #include "main.h"
 char MOTOR_DEAD = 0;//电机的死区占空比
-float Right_motor_speed=0,Left_motor_speed=0;
+float Right_motor_speed=0,Left_motor_speed=0;//左右轮测的的速度
 float Set_right_speed=0,Set_left_speed=0;
-float Set_speed;
+float Set_speed=0;
 /************************************************************/
 /* 				初始化编码器							*/
 /************************************************************/
@@ -20,8 +20,10 @@ void Coder_init()
 /************************************************************/
 void get_speed()
 {
-	Car_speed=MCF_GPT_GPTPACNT;
+	Right_motor_speed=MCF_GPT_GPTPACNT/0.005;//要通过测量算出一个脉冲代表的距离
 	MCF_GPT_GPTPACNT=0;
+	Car_speed=(Right_motor_speed+Left_motor_speed)/2;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
+	
 }
 /************************************************************/
 /*                       初始化PWM模块                      */
