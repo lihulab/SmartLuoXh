@@ -9,7 +9,7 @@
 #include "FX_UART_driver.h"
 #include "PIT.h"
 #include "camera.h"
-
+#include "key.h"
 
 #define EnableInterrupts asm { move.w SR,D0; andi.l #0xF8FF,D0; move.w D0,SR;  }
 
@@ -20,8 +20,10 @@ struct PID
 	float Derivative;
 	float Out;
 	float Error;
-	float Error_sum;
+	float Error_L;
+	float Error_P;
 };
 extern float Car_speed;
-extern struct PID Speed_PID;
+extern struct PID Speed_L_PID;
+extern struct PID Speed_R_PID;
 extern struct PID Angle_PID;

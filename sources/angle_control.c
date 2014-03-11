@@ -3,9 +3,9 @@ float gravity;//重力加速度换算得到的角度
 float gyro;//陀螺仪采的的角速度
 float angle;//计算得出的角度
 float angular_speed;//卡尔曼滤波得到的角速度
-float angle_gyro;//陀螺仪积分得到
-int gravity_zero;//加速度计零点
-int gyro_zero;//陀螺仪零点
+float angle_gyro=0;//陀螺仪积分得到
+int gravity_zero = 2060;//加速度计零点
+int gyro_zero = 1810;//陀螺仪零点
 float set_angle = 0.0;
 //-------------------------------------------------------
 //卡尔曼滤波，波形基本可用
@@ -102,12 +102,13 @@ void get_gravity(void)
 		AD_gravity+=AD_capture(1)*0.1;
 	}
 	//利用反三角函数做归一化
-	if((gravity_zero - AD_gravity)>850)
-		gravity_error = 850;
-	else if((gravity_zero - AD_gravity)<-850)
-		gravity_error = -850;
+	if((gravity_zero - AD_gravity)>810)
+		gravity_error = 810;
+	else if((gravity_zero - AD_gravity)<-810)
+		gravity_error = -810;
 	else gravity_error = gravity_zero - AD_gravity;
-	gravity = (asinf((gravity_error)/850.0))*57.2957;
+	gravity = (asinf((gravity_error)/810.0))*57.2957;
+	
 	//gravity = (gravity_zero - AD_gravity)*0.1058;//线性归一化,参数要重新调整，现在效果不好
 }
 //------------------------------------------------------
@@ -121,17 +122,17 @@ void get_gyro(void)
 	{
 		AD_gyro+=AD_capture(0)*0.1;
 	}
-	gyro = (AD_gyro - gyro_zero)*0.4;
+	gyro = (AD_gyro - gyro_zero)*0.25;
 }
 //------------------------------------------------------
 //利用角速度积分计算角度，整定角速度的系数用
 //------------------------------------------------------
 void get_gyro_angle()
 {
-	float dt = 0.002;
+	float dt = 0.005;
 	angle_gyro += gyro * dt;
 }
 float angle_out()
 {
-	Angle_PID.Out = Angle_PID.Proportion*angle + Angle_PID.Derivative*angular_speed;//到底用卡尔曼滤波之后的角速度还是直接获取的角速度还未确定
+	Angle_PID.Out = Angle_PID.Proportion*(set_angle-angle) + Angle_PID.Derivative*(-gyro);//到底用卡尔曼滤波之后的角速度还是直接获取的角速度还未确定
 }

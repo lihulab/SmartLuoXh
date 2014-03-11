@@ -12,56 +12,58 @@ char str_flag = 0;
 /************************************************************/
 void UART_INIT(uint8 uartNo, int32 sysclk, int32 baud, uint8 intStatus)
 {
-    register uint16 ubgs;
-    if(uartNo > 2)
-    {  //若传进的通道号大于2，则按照2来设置
-        uartNo = 2;
-    }
-    
+	register uint16 ubgs;
+	MCF_GPIO_PTJPAR|=MCF_GPIO_PTJPAR_FEC_TXD0_GPIO;
+	MCF_GPIO_DDRTJ&=~MCF_GPIO_DDRTJ_DDRTJ2;
+	if(uartNo > 2)
+	{  //若传进的通道号大于2，则按照2来设置
+	    uartNo = 2;
+	}
+
 	//使能UART接口功能
 	if(uartNo==0)
 		MCF_GPIO_PUAPAR=MCF_GPIO_PUAPAR_UTXD0_UTXD0      
 				   	   |MCF_GPIO_PUAPAR_URXD0_URXD0;
-    else if(uartNo==1)
+	else if(uartNo==1)
 	    MCF_GPIO_PUBPAR=MCF_GPIO_PUBPAR_UTXD1_UTXD1
-    			       |MCF_GPIO_PUBPAR_URXD1_URXD1;
-    else
-   		MCF_GPIO_PUCPAR=MCF_GPIO_PUCPAR_UTXD2_UTXD2
-    			       |MCF_GPIO_PUCPAR_URXD2_URXD2;
-    	
-    //复位接收器和发送器以及模式寄存器
-    MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_TX;  //复位发送器
-    MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_RX;  //复位接收器
-    MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_MR;  //复位模式寄存器
-    //配置UART模式:无奇偶校验、8位数据、正常通道模式、1停止位
-    MCF_UART_UMR(uartNo) = (0
-                          | MCF_UART_UMR_PM_NONE
-                          | MCF_UART_UMR_BC_8 );
-    MCF_UART_UMR(uartNo) = (0
-                          | MCF_UART_UMR_CM_NORMAL
-                          | MCF_UART_UMR_SB_STOP_BITS_1);
-                          
-    //选择预分频后的内部总线时钟作为收发器的时钟源
-    MCF_UART_UCSR(uartNo) = (0
+				       |MCF_GPIO_PUBPAR_URXD1_URXD1;
+	else
+			MCF_GPIO_PUCPAR=MCF_GPIO_PUCPAR_UTXD2_UTXD2
+				       |MCF_GPIO_PUCPAR_URXD2_URXD2;
+		
+	//复位接收器和发送器以及模式寄存器
+	MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_TX;  //复位发送器
+	MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_RX;  //复位接收器
+	MCF_UART_UCR(uartNo) = MCF_UART_UCR_RESET_MR;  //复位模式寄存器
+	//配置UART模式:无奇偶校验、8位数据、正常通道模式、1停止位
+	MCF_UART_UMR(uartNo) = (0
+	                      | MCF_UART_UMR_PM_NONE
+	                      | MCF_UART_UMR_BC_8 );
+	MCF_UART_UMR(uartNo) = (0
+	                      | MCF_UART_UMR_CM_NORMAL
+	                      | MCF_UART_UMR_SB_STOP_BITS_1);
+	                      
+	//选择预分频后的内部总线时钟作为收发器的时钟源
+	MCF_UART_UCSR(uartNo) = (0
 				           |MCF_UART_UCSR_RCS_SYS_CLK
 		  		           |MCF_UART_UCSR_TCS_SYS_CLK);
-    
-    //屏蔽所有的UART中断
-    MCF_UART_UIMR(uartNo) = 0;
-    //计算波特率并设置:UBG = fsys/(波特率*32)
-    ubgs = (uint16)(sysclk/(baud * 32));
-    MCF_UART_UBG1(uartNo) = (uint8)((ubgs & 0xFF00) >> 8);
-    MCF_UART_UBG2(uartNo) = (uint8) (ubgs & 0x00FF);
-    
-    //使能接收器和发送器
-    MCF_UART_UCR(uartNo) = (0
-                          | MCF_UART_UCR_RX_ENABLED
-                          | MCF_UART_UCR_TX_ENABLED);
-    
-    //决定是否开放UARTx接收中断
-    if(1 == intStatus)
-    {  //开串行接收中断
-        MCF_UART_UIMR(uartNo) = 0x02;
+
+	//屏蔽所有的UART中断
+	MCF_UART_UIMR(uartNo) = 0;
+	//计算波特率并设置:UBG = fsys/(波特率*32)
+	ubgs = (uint16)(sysclk/(baud * 32));
+	MCF_UART_UBG1(uartNo) = (uint8)((ubgs & 0xFF00) >> 8);
+	MCF_UART_UBG2(uartNo) = (uint8) (ubgs & 0x00FF);
+
+	//使能接收器和发送器
+	MCF_UART_UCR(uartNo) = (0
+	                      | MCF_UART_UCR_RX_ENABLED
+	                      | MCF_UART_UCR_TX_ENABLED);
+
+	//决定是否开放UARTx接收中断
+	if(1 == intStatus)
+	{  //开串行接收中断
+	    MCF_UART_UIMR(uartNo) = 0x02;
 		if(uartNo==0)
 		{
 			MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;       //使能总中断
@@ -81,10 +83,10 @@ void UART_INIT(uint8 uartNo, int32 sysclk, int32 baud, uint8 intStatus)
 			MCF_INTC0_ICR15=MCF_INTC_ICR_IP(4)+MCF_INTC_ICR_IL(2); //设置中断优先级		
 		}
 
-    }
-    else
-    {  //禁串行接收中断
-        MCF_UART_UIMR(uartNo) = 0x00;
+	}
+	else
+	{  //禁串行接收中断
+	    MCF_UART_UIMR(uartNo) = 0x00;
 		if(uartNo==0)
 		{
 			MCF_INTC0_IMRL|=MCF_INTC_IMRL_INT_MASK13;    //禁止UART0中断
@@ -97,7 +99,7 @@ void UART_INIT(uint8 uartNo, int32 sysclk, int32 baud, uint8 intStatus)
 		{
 			MCF_INTC0_IMRL|=MCF_INTC_IMRL_INT_MASK15;    //禁止UART2中断
 		}
-    }
+	}
 }
 
 /************************************************************/
@@ -160,9 +162,9 @@ __declspec(interrupt:0) void UART0_inter(void)//13
 {
 	uint8 temp;
 	temp=UART_Receive1byte(0);
-	if((temp == 'A') || (str_flag == 1))
-	{
-		str_flag = 1;
+	//if((temp == 'A') || (str_flag == 1))
+	//{
+		//str_flag = 1;
 		switch(temp)
 		{
 			case 0xff://紧急停车
@@ -173,10 +175,10 @@ __declspec(interrupt:0) void UART0_inter(void)//13
 				}
 			
 		}
-		if(temp = ';')
-		{
-			str_flag = 0;
-		}
+		//if(temp = ';')
+		//{
+		//	str_flag = 0;
+		//}
 		/*
 		if(temp != ';')
 		{
@@ -191,7 +193,7 @@ __declspec(interrupt:0) void UART0_inter(void)//13
 			str_flag = 0;
 		}
 		*/
-	}
+	//}
 }
 /************************************************************/
 /*                    UART发送虚拟示波器函数                */

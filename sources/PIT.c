@@ -3,8 +3,8 @@
 /*                       初始化PIT0                         */
 /************************************************************/
 void init_PIT0(void)
-{
-		
+{		
+
 	MCF_PIT_PCSR(0)=MCF_PIT_PCSR_RLD     //重新载入初始值 
 				   |MCF_PIT_PCSR_PIF     //清除中断标志位
 				   |MCF_PIT_PCSR_PIE     //使能中断
@@ -65,14 +65,15 @@ void PIT1_stop(void)
 
 __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 {
-	//get_gyro();
-	//get_gravity();
-	//Kalman_Filter();
-	//set_motor_highduty((char)angle_PID(),(char)angle_PID());
-	//set_speed(0);
-	get_speed();
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
-	
+	get_gyro();
+	get_gravity();
+	//get_gyro_angle();
+	Kalman_Filter();
+	//get_speed();
+	angle_out();
+	set_motor_highduty(Angle_PID.Out,Angle_PID.Out);
+	//speed_out(Set_speed);
 }
 
 __declspec(interrupt:0) void PIT1_handler(void)//interrupt source 56
