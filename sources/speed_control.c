@@ -1,7 +1,7 @@
 #include "main.h"
-char MOTOR_DEAD_F = 8;//电机的死区占空比
-char MOTOR_DEAD_B = 5;
-int Right_motor_speed=0,Left_motor_speed=0;//左右轮测的的速度
+char MOTOR_DEAD_F = 0;//电机的死区占空比
+char MOTOR_DEAD_B = 0;
+float Right_motor_speed=0,Left_motor_speed=0;//左右轮测的的速度
 float Set_right_speed=0,Set_left_speed=0;
 float Set_speed=0;
 uint32 *scount1, *scount2;
@@ -41,14 +41,18 @@ void Coder_init()
 	MCF_DTIM3_DTMR |= MCF_DTIM_DTMR_RST;				//开启DTIM	
 }
 /************************************************************/
-/* 				初始化编码器							*/
+/* 				获取速度								*/
 /************************************************************/
-void get_speed()
+void get_speed()//向前为正，向后为负
 {
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) Left_motor_speed = 1000-MCF_DMA_BCR(1)&0xffffff;
-	else Left_motor_speed = -(1000 - MCF_DMA_BCR(1)&0xffffff);
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=MCF_GPT_GPTPACNT;//要通过测量算出一个脉冲代表的距离
-	else Right_motor_speed= -MCF_GPT_GPTPACNT;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) Left_motor_speed = (1000-MCF_DMA_BCR(1)&0xffffff)/10.0;
+	else
+	{
+		Left_motor_speed = (1000 - MCF_DMA_BCR(1)&0xffffff);
+		Left_motor_speed = -Left_motor_speed/10.0;
+	}
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=MCF_GPT_GPTPACNT/10.0;//要通过测量算出一个脉冲代表的距离
+	else Right_motor_speed = (-MCF_GPT_GPTPACNT)/10.0;
 	MCF_GPT_GPTPACNT=0;
 	MCF_DMA_BCR(1)=1000;
 	Car_speed=(Right_motor_speed+Left_motor_speed)/2;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
@@ -80,8 +84,8 @@ void PWM_INIT(void)
 					|MCF_PWM_PWMPRCLK_PCKB(2);
 
 	//设置A时钟频率和B时钟频率， SA=Clock A/2*PWMSCLA; SB=Clock B/2*PWMSCLB
-	MCF_PWM_PWMSCLA=5;    //SA时钟频率为1MHz
-	MCF_PWM_PWMSCLB=5;    //SB时钟频率为1MHz
+	MCF_PWM_PWMSCLA=4;    //SA时钟频率为1MHz
+	MCF_PWM_PWMSCLB=4;    //SB时钟频率为1MHz
 
 
 	//选择PWM时钟，选择SA或SB时钟
@@ -118,15 +122,19 @@ void PWM_INIT(void)
 				|MCF_PWM_PWME_PWME3
 				|MCF_PWM_PWME_PWME4;
 }
-void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)
+void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负为向后走
 {
 	int HighdutyA=0,HighdutyB=0;
-	if(Set_highdutyA>100) Set_highdutyA=99;
-	if(Set_highdutyA<(-100)) Set_highdutyA=-99;
-	if(Set_highdutyB>100) Set_highdutyB=99;
-	if(Set_highdutyB<(-100)) Set_highdutyB=-99;
-	HighdutyA = (Set_highdutyA/100.0)*200.0;
-	HighdutyB = (Set_highdutyB/100.0)*200.0;
+	if(Set_highdutyA>100) Set_highdutyA=0;
+	if(Set_highdutyA<(-100)) Set_highdutyA=0;
+	if(Set_highdutyB>100) Set_highdutyB=0;
+	if(Set_highdutyB<(-100)) Set_highdutyB=0;
+	if(Set_highdutyA>70) Set_highdutyA=70;
+	if(Set_highdutyA<(-70)) Set_highdutyA=-70;
+	if(Set_highdutyB>70) Set_highdutyB=70;
+	if(Set_highdutyB<(-70)) Set_highdutyB=-70;
+	HighdutyA = -(Set_highdutyA/100.0)*200.0;
+	HighdutyB = -(Set_highdutyB/100.0)*200.0;
 	if((HighdutyA<0)&&(HighdutyA>=(-200)))
 	{
 		MCF_PWM_PWMPOL&=~MCF_PWM_PWMPOL_PPOL1;
@@ -168,35 +176,30 @@ void speed_out(float target_speed)
 	tempB_error=Right_motor_speed- (target_speed+Set_right_speed);
 	if((tempA_error<=20)&&(tempA_error>=-20))
 	{
-		Speed_L_PID.Error=Car_speed- (target_speed+Set_left_speed);
-		Speed_L_PID.Out+=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error+Speed_L_PID.Derivative*Speed_L_PID.Error_P;
+		Speed_L_PID.Error=(target_speed+Set_left_speed)-Left_motor_speed;
+		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error;
 		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
 		Speed_L_PID.Error_L=Speed_L_PID.Error;
-		SpeedA_out=Speed_L_PID.Out;
 	}
 	else 
 	{
-		Speed_L_PID.Error=Car_speed- (target_speed+Set_left_speed);
-		Speed_L_PID.Out+=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Derivative*Speed_L_PID.Error_P;
+		Speed_L_PID.Error=(target_speed+Set_left_speed)-Left_motor_speed;
+		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L);
 		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
 		Speed_L_PID.Error_L=Speed_L_PID.Error;
-		SpeedA_out=Speed_L_PID.Out;
 	}
 	if((tempB_error<=20)&&(tempB_error>=-20))
 	{
-		Speed_R_PID.Error=Car_speed- (target_speed+Set_right_speed);
-		Speed_R_PID.Out+=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error;
+		Speed_R_PID.Error=(target_speed+Set_right_speed)-Right_motor_speed;
+		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error;
 		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
 		Speed_R_PID.Error_L=Speed_R_PID.Error;
-		SpeedB_out=Speed_R_PID.Out;
 	}
 	else
 	{
-		Speed_R_PID.Error=Right_motor_speed- (target_speed+Set_right_speed);
-		Speed_R_PID.Out+=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+Speed_R_PID.Derivative*Speed_R_PID.Error_P;
+		Speed_R_PID.Error=(target_speed+Set_right_speed)-Right_motor_speed;
+		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L);
 		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
 		Speed_R_PID.Error_L=Speed_R_PID.Error;
-		SpeedB_out=Speed_R_PID.Out;
 	}
-	set_motor_highduty(-SpeedA_out+Angle_PID.Out,-SpeedB_out+Angle_PID.Out);//只加入了速度的控制，转向的控制还没有加入进去，暂时准备写个函数
 }

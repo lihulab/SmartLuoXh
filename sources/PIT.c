@@ -65,15 +65,22 @@ void PIT1_stop(void)
 
 __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 {
+	static char i=0;
+	i++;
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
 	get_gyro();
 	get_gravity();
 	//get_gyro_angle();
 	Kalman_Filter();
-	//get_speed();
 	angle_out();
-	set_motor_highduty(Angle_PID.Out,Angle_PID.Out);
-	//speed_out(Set_speed);
+	//get_speed();
+	if(i==10)
+	{
+		get_speed();
+		speed_out(Set_speed);
+		i=0;
+	}
+	set_motor_highduty(Speed_L_PID.Out+Angle_PID.Out,Speed_R_PID.Out+Angle_PID.Out);
 }
 
 __declspec(interrupt:0) void PIT1_handler(void)//interrupt source 56
