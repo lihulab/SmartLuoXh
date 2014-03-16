@@ -9,6 +9,7 @@
  extern char beyond64x64[512];
 
  void OLCD_init(void);
+ void delay_ms(uint ms);
  void LCD_CLS(void);
  void LCD_P6x8Str(byte x,byte y,char ch[]);
  void LCD_P8x16Str(byte x,byte y,char ch[]);

@@ -3,16 +3,16 @@ float gravity;//重力加速度换算得到的角度
 float gyro;//陀螺仪采的的角速度
 float angle;//计算得出的角度
 float angular_speed;//卡尔曼滤波得到的角速度
-float angle_gyro;//陀螺仪积分得到
-int gravity_zero;//加速度计零点
-int gyro_zero;//陀螺仪零点
+float angle_gyro=0;//陀螺仪积分得到
+int gravity_zero = 2060;//加速度计零点
+int gyro_zero = 1800;//陀螺仪零点
 float set_angle = 0.0;
 //-------------------------------------------------------
 //卡尔曼滤波，波形基本可用
 //-------------------------------------------------------
 void Kalman_Filter(void)                        
 {
-	static  float Q_angle=0.001, Q_gyro=0.003, R_angle=0.05, dt=0.0055;//注意：dt的取值为kalman滤波器采样时间;
+	static  float Q_angle=0.001, Q_gyro=0.003, R_angle=0.5, dt=0.009;//注意：dt的取值为kalman滤波器采样时间;
 	static float Pk[2][2] = { {1, 0 }, {0, 1 }};
 	static float Pdot[4] ={0,0,0,0};
 	static const float C_0 = 1;
@@ -91,7 +91,7 @@ void get_gyro_zero()
 	UART_Sendgraph(0,0,gyro_zero);
 }
 //------------------------------------------------------
-//获取加速度计得出的角度值
+//获取加速度计得出的角度值（正为向前）
 //------------------------------------------------------
 void get_gravity(void)
 {
@@ -102,16 +102,17 @@ void get_gravity(void)
 		AD_gravity+=AD_capture(1)*0.1;
 	}
 	//利用反三角函数做归一化
-	if((gravity_zero - AD_gravity)>850)
-		gravity_error = 850;
-	else if((gravity_zero - AD_gravity)<-850)
-		gravity_error = -850;
+	if((gravity_zero - AD_gravity)>810)
+		gravity_error = 810;
+	else if((gravity_zero - AD_gravity)<-810)
+		gravity_error = -810;
 	else gravity_error = gravity_zero - AD_gravity;
-	gravity = (asinf((gravity_error)/850.0))*57.2957;
+	gravity = (asinf((gravity_error)/810.0))*57.2957;
+	
 	//gravity = (gravity_zero - AD_gravity)*0.1058;//线性归一化,参数要重新调整，现在效果不好
 }
 //------------------------------------------------------
-//获取当前陀螺仪得出的角速度值
+//获取当前陀螺仪得出的角速度值(正为向前转)
 //------------------------------------------------------
 void get_gyro(void)
 {
@@ -121,17 +122,17 @@ void get_gyro(void)
 	{
 		AD_gyro+=AD_capture(0)*0.1;
 	}
-	gyro = (AD_gyro - gyro_zero)*0.4;
+	gyro = (AD_gyro - gyro_zero)*0.25;
 }
 //------------------------------------------------------
 //利用角速度积分计算角度，整定角速度的系数用
 //------------------------------------------------------
 void get_gyro_angle()
 {
-	float dt = 0.002;
+	float dt = 0.005;
 	angle_gyro += gyro * dt;
 }
 float angle_out()
 {
-	Angle_PID.Out = Angle_PID.Proportion*angle + Angle_PID.Derivative*angular_speed;//到底用卡尔曼滤波之后的角速度还是直接获取的角速度还未确定
+	Angle_PID.Out = Angle_PID.Proportion*(angle-set_angle) + Angle_PID.Derivative*gyro;//到底用卡尔曼滤波之后的角速度还是直接获取的角速度还未确定
 }

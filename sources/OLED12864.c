@@ -821,7 +821,7 @@ void LCD_P8x16Str(byte x,byte y,char ch[])
 void LCD_P6x8float(byte x,byte y,float num)
 {
 	char str[5];
-	sprintf(str,"%.2f",num);
+	sprintf(str,"%.3f",num);
 	LCD_P6x8Str(x,y,str);
 }
 //==============================================================
