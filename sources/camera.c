@@ -3,7 +3,7 @@
  *
  */
 #include "main.h"
-unsigned char Image_Data[ROW][COLUMN_RAW];
+unsigned char Image_Data[ROW][COLUMN];
 unsigned char Image_bw[ROW][COLUMN];
 unsigned char Image_Edge[ROW][2];
 unsigned char Image_T=100;//二值化图像的值
@@ -84,7 +84,7 @@ void Dynamic_threshold(void)
 	{
 		for(i=0;i<ROW;i++)
 		{
-			for(j=0;j<COLUMN_RAW;j+=4)
+			for(j=0;j<COLUMN;j+=1)
 			{
 				if(Image_Data[i][j]<Image_T)
 				{
@@ -113,7 +113,7 @@ void Image_binaryzation()
 	{
 		for(j=0;j<COLUMN;j++)
 		{
-			if(Image_Data[i][j*4]<Image_T) Image_bw[i][j]=0;
+			if(Image_Data[i][j]<Image_T) Image_bw[i][j]=0;
 			else Image_bw[i][j]=255;
 		}
 	}
@@ -142,7 +142,7 @@ void UART_SendImage()
 	UART_Send1byte(0,0x00);
 	for(i=0;i<ROW;i++)
 	{
-		for(j=0;j<COLUMN_RAW;j+=4)
+		for(j=0;j<COLUMN;j++)
 		{
 			UART_Send1byte(0,Image_Data[i][j]);
 		}
@@ -204,10 +204,9 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 	HREF_Flag = 1;
 	if((Line_C%8)==1)
 	{
-		MCF_DMA_BCR(0)=COLUMN_RAW;
+		MCF_DMA_BCR(0)=COLUMN;
 		MCF_DMA_DAR(0)=(uint32)Image_Data[Line_ROW];
 		MCF_DMA_DCR(0)|=MCF_DMA_DCR_EEXT;
-
 	}
 	Line_C++;
 	if(Line_C==240)
@@ -225,10 +224,8 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		Line_ROW=0;
 		Dynamic_threshold();
 		Image_binaryzation();
-		Edge_detect();
-		//test();
-		UART_SendBWImage();
-		//UART_SendImage();
+		//Edge_detect();
+		//UART_SendBWImage();
 	}
 }
 void SCCB_Init(void)
@@ -357,7 +354,7 @@ void Init_OV7620_DMA()
 	MCF_SCM_DMAREQC = MCF_SCM_DMAREQC_DMAC0(0x04);//设定DMA0为DTIM0触发
 	MCF_DMA_SAR(0)=(uint32)0x40100030;//源地址为PTE
 	MCF_DMA_DAR(0)=(uint32)Image_Data[0];//目的地址为图像数组
-	MCF_DMA_BCR(0)=320;//传输长度为每行的长度，这里是320个像素
+	MCF_DMA_BCR(0)=80;//传输长度为每行的长度，这里是80个像素
 	MCF_DMA_DCR(0)=MCF_DMA_DCR_INT//开启DMA中断
 				|MCF_DMA_DCR_SSIZE(1)
 				|MCF_DMA_DCR_DSIZE(1)//每次传输源地址和目的地址都为一字节
@@ -374,6 +371,7 @@ void Init_OV7620_DMA()
 	MCF_DTIM_DTMR(0) |= MCF_DTIM_DTMR_RST;//开启DTIM
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_INT_MASK9;
-	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(6)+MCF_INTC_ICR_IL(6);
+	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(7)+MCF_INTC_ICR_IL(7);
+	mcf_intc
 	EPORT_init();
 }

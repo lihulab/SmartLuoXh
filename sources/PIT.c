@@ -74,7 +74,7 @@ __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 	Kalman_Filter();
 	angle_out();
 	//get_speed();
-	if(i==10)
+	if(i==5)
 	{
 		get_speed();
 		speed_out(Set_speed);

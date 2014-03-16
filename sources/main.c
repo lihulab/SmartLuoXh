@@ -8,11 +8,13 @@ int main(void)
 {
 	Angle_PID.Proportion = 15;
 	Angle_PID.Derivative = 0.15;
-	Speed_L_PID.Proportion = 0.1;
+	Speed_L_PID.Proportion = 3;
+	Speed_L_PID.Derivative = 0;
 	Speed_L_PID.Integral = 0.000;
 	Speed_L_PID.Error_P = 0;
 	Speed_L_PID.Error_L = 0;
-	Speed_R_PID.Proportion = 0.1;
+	Speed_R_PID.Proportion = 3;
+	Speed_R_PID.Derivative = 0;
 	Speed_R_PID.Integral = 0.000;
 	Speed_R_PID.Error_P = 0;
 	Speed_R_PID.Error_L = 0;
@@ -24,8 +26,7 @@ int main(void)
 	OLCD_init();
 	Coder_init();
 	init_key();
-	//get_gyro_zero();
-	//get_gravity_zero();
+	Init_OV7620_DMA();
 	EnableInterrupts;
 	while(1)
 	{		
@@ -41,26 +42,26 @@ int main(void)
 		if(temp==0)
 		{
 			LCD_P6x8float(0, 0, Speed_L_PID.Proportion);
-			LCD_P6x8float(0, 1, Speed_L_PID.Integral);
+			LCD_P6x8float(0, 1, Speed_L_PID.Derivative);
 			if(key2_press())
 			{
-				Speed_L_PID.Proportion-=0.05;
-				Speed_R_PID.Proportion-=0.05;
+				Speed_L_PID.Proportion-=0.5;
+				Speed_R_PID.Proportion-=0.5;
 			}
 			if(key3_press())
 			{
-				Speed_L_PID.Integral-=0.005;
-				Speed_R_PID.Integral-=0.005;
+				Speed_L_PID.Derivative-=0.01;
+				Speed_R_PID.Derivative-=0.01;
 			}
 			if(key4_press())
 			{
-				Speed_L_PID.Proportion+=0.05;
-				Speed_R_PID.Proportion+=0.05;
+				Speed_L_PID.Proportion+=0.5;
+				Speed_R_PID.Proportion+=0.5;
 			}
 			if(key5_press())
 			{
-				Speed_L_PID.Integral+=0.005;
-				Speed_R_PID.Integral+=0.005;
+				Speed_L_PID.Derivative+=0.01;
+				Speed_R_PID.Derivative+=0.01;
 			}
 			LCD_P6x8Str(0, 6,"Speed");
 		}
@@ -99,7 +100,5 @@ int main(void)
 				Set_speed-=1;
 			}
 		}
-		UART_Sendgraph(0, 0,gravity*10);
-		UART_Sendgraph(0, 1, angle*10);
 	}
 }

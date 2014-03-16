@@ -45,14 +45,14 @@ void Coder_init()
 /************************************************************/
 void get_speed()//向前为正，向后为负
 {
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) Left_motor_speed = (1000-MCF_DMA_BCR(1)&0xffffff)/10.0;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) Left_motor_speed = (1000-MCF_DMA_BCR(1)&0xffffff)/5.0;
 	else
 	{
 		Left_motor_speed = (1000 - MCF_DMA_BCR(1)&0xffffff);
-		Left_motor_speed = -Left_motor_speed/10.0;
+		Left_motor_speed = -Left_motor_speed/5.0;
 	}
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=MCF_GPT_GPTPACNT/10.0;//要通过测量算出一个脉冲代表的距离
-	else Right_motor_speed = (-MCF_GPT_GPTPACNT)/10.0;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=MCF_GPT_GPTPACNT/5.0;//要通过测量算出一个脉冲代表的距离
+	else Right_motor_speed = (-MCF_GPT_GPTPACNT)/5.0;
 	MCF_GPT_GPTPACNT=0;
 	MCF_DMA_BCR(1)=1000;
 	Car_speed=(Right_motor_speed+Left_motor_speed)/2;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
@@ -125,10 +125,10 @@ void PWM_INIT(void)
 void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负为向后走
 {
 	int HighdutyA=0,HighdutyB=0;
-	if(Set_highdutyA>100) Set_highdutyA=0;
-	if(Set_highdutyA<(-100)) Set_highdutyA=0;
-	if(Set_highdutyB>100) Set_highdutyB=0;
-	if(Set_highdutyB<(-100)) Set_highdutyB=0;
+	if(Set_highdutyA>300) Set_highdutyA=0;
+	if(Set_highdutyA<(-300)) Set_highdutyA=0;
+	if(Set_highdutyB>300) Set_highdutyB=0;
+	if(Set_highdutyB<(-300)) Set_highdutyB=0;
 	if(Set_highdutyA>70) Set_highdutyA=70;
 	if(Set_highdutyA<(-70)) Set_highdutyA=-70;
 	if(Set_highdutyB>70) Set_highdutyB=70;
@@ -172,33 +172,33 @@ void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负
 void speed_out(float target_speed)
 {
 	float SpeedA_out=0,SpeedB_out=0,tempA_error=0,tempB_error=0;
-	tempA_error=Left_motor_speed- (target_speed+Set_left_speed);
-	tempB_error=Right_motor_speed- (target_speed+Set_right_speed);
+	tempA_error=Car_speed- (target_speed+Set_left_speed);
+	tempB_error=Car_speed- (target_speed+Set_right_speed);
 	if((tempA_error<=20)&&(tempA_error>=-20))
 	{
-		Speed_L_PID.Error=(target_speed+Set_left_speed)-Left_motor_speed;
-		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error;
+		Speed_L_PID.Error=(target_speed+Set_left_speed)-Car_speed;
+		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error+Speed_L_PID.Derivative*(Speed_L_PID.Error-2*Speed_L_PID.Error_L+Speed_L_PID.Error_P);
 		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
 		Speed_L_PID.Error_L=Speed_L_PID.Error;
 	}
 	else 
 	{
-		Speed_L_PID.Error=(target_speed+Set_left_speed)-Left_motor_speed;
-		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L);
+		Speed_L_PID.Error=(target_speed+Set_left_speed)-Car_speed;
+		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Derivative*(Speed_L_PID.Error-2*Speed_L_PID.Error_L+Speed_L_PID.Error_P);
 		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
 		Speed_L_PID.Error_L=Speed_L_PID.Error;
 	}
 	if((tempB_error<=20)&&(tempB_error>=-20))
 	{
-		Speed_R_PID.Error=(target_speed+Set_right_speed)-Right_motor_speed;
-		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error;
+		Speed_R_PID.Error=(target_speed+Set_right_speed)-Car_speed;
+		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error+Speed_R_PID.Derivative*(Speed_R_PID.Error-2*Speed_R_PID.Error_L+Speed_R_PID.Error_P);
 		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
 		Speed_R_PID.Error_L=Speed_R_PID.Error;
 	}
 	else
 	{
-		Speed_R_PID.Error=(target_speed+Set_right_speed)-Right_motor_speed;
-		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L);
+		Speed_R_PID.Error=(target_speed+Set_right_speed)-Car_speed;
+		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+Speed_R_PID.Derivative*(Speed_R_PID.Error-2*Speed_R_PID.Error_L+Speed_R_PID.Error_P);
 		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
 		Speed_R_PID.Error_L=Speed_R_PID.Error;
 	}
