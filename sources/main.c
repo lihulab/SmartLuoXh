@@ -3,7 +3,7 @@ float Car_speed = 0;
 struct PID Speed_L_PID;
 struct PID Speed_R_PID;
 struct PID Angle_PID;
-char temp=0;//用于参数切换
+char temp=0,graph_switch=0;;//用于参数切换
 int main(void)
 {
 	Angle_PID.Proportion = 15;
@@ -36,6 +36,11 @@ int main(void)
 		LCD_P6x8float(0, 5, Angle_PID.Out);
 		if(key1_press())
 		{
+			if(key5_press())
+			{
+				if(graph_switch==0) graph_switch=1;
+				else graph_switch=0;
+			}
 			temp++;
 			if(temp==3) temp=0;
 		}
@@ -89,7 +94,7 @@ int main(void)
 		}
 		if(temp==2)
 		{
-			LCD_P6x8Str(0,0,"Set speed");
+			LCD_P6x8Str(0,0,"Set spe4ed");
 			LCD_P6x8float(0, 1, Set_speed);
 			if(key2_press())
 			{
@@ -100,5 +105,6 @@ int main(void)
 				Set_speed-=1;
 			}
 		}
+		Draw_BMP(40, 0, 120, 4, Image_bw[0]);
 	}
 }

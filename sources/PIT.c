@@ -7,7 +7,7 @@ void init_PIT0(void)
 
 	MCF_PIT_PCSR(0)=MCF_PIT_PCSR_RLD     //重新载入初始值 
 				   |MCF_PIT_PCSR_PIF     //清除中断标志位
-				   |MCF_PIT_PCSR_PIE     //使能中断
+				   |MCF_PIT_PCSR_PIE//使能中断
 				   |MCF_PIT_PCSR_OVW     //允许覆盖
 				   |MCF_PIT_PCSR_PRE(9); //分频系数为2^9=512，
 				                         //时钟源的频率为40MHz，
@@ -30,10 +30,9 @@ void init_PIT0(void)
 										 //14-2441.40625Hz
 										 //15-1220.703125Hz
 	MCF_PIT_PMR(0)=(uint16)(250000/200);    //计数时间为5ms  ，作为编码器和直立采样周期合适，摄像头控制未知
-
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;     //使能中断功能
 	MCF_INTC0_IMRH&=~MCF_INTC_IMRH_INT_MASK55;  //使能PIT0中断
-	MCF_INTC0_ICR55=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(3); //设置PIT0中断优先级
+	MCF_INTC0_ICR55=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(2); //设置PIT0中断优先级
 	                          //IL可设置7个级别，IP设置每个级别中的优先级。
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_EN;    //使能PIT0   
 }
@@ -64,10 +63,10 @@ void PIT1_stop(void)
 }
 
 __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
-{
+{	
 	static char i=0;
-	i++;
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
+	i++;
 	get_gyro();
 	get_gravity();
 	//get_gyro_angle();
@@ -81,10 +80,9 @@ __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 		i=0;
 	}
 	set_motor_highduty(Speed_L_PID.Out+Angle_PID.Out,Speed_R_PID.Out+Angle_PID.Out);
+	//while(1);
 }
-
 __declspec(interrupt:0) void PIT1_handler(void)//interrupt source 56
 {
 	MCF_PIT_PCSR(1)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
-	
 }

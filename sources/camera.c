@@ -3,8 +3,8 @@
  *
  */
 #include "main.h"
-unsigned char Image_Data[ROW][COLUMN];
-unsigned char Image_bw[ROW][COLUMN];
+unsigned char Image_Data[ROW][COLUMN];//采集到的图像数组，起始点喂左上角
+unsigned char Image_bw[ROW/8][COLUMN];
 unsigned char Image_Edge[ROW][2];
 unsigned char Image_T=100;//二值化图像的值
 unsigned char VSYN_Flag,HREF_Flag;
@@ -12,48 +12,62 @@ unsigned int Point_C=0,Line_C=0,Line_ROW=0;
 void Edge_detect()
 {
 	char i,j;
+	char Found_flag=0;//用于表示当前行有没有找到边沿，如果没有找到为0
 	for(i=ROW-1;i>=0;i--)
 	{
-		if(i>=(ROW-3))
+		if(i>=(ROW-10))
 		{
-			if((Image_bw[i][40]==255)&&(Image_bw[i][39]==255))
+			if(1)//((Image_bw[i/8][COLUMN/2]&(1<<(i%8)))!=0)&&((Image_bw[i/8][COLUMN/2-1]&(1<<(i%8)))!=0))
 			{
-				for(j=1;j<40;j++)
+				for(j=0;j<COLUMN/2;j++)
 				{
-					if(Image_bw[i][39-j]==0)
+					if((Image_bw[i/8][COLUMN/2-1-j]&(1<<(i%8)))==0)
 					{
-						Image_Edge[i][0]=39-j;
+						Image_Edge[i][0]=COLUMN/2-1-j;
 						break;
 					}
 				}
-				for(j=0;j<40;j++)
+				for(j=0;j<COLUMN/2;j++)
 				{
-					if(Image_bw[i][40+j]==0)
+					if((Image_bw[i/8][COLUMN/2+j]&(1<<(i%8)))==0)
 					{
-						Image_Edge[i][1]=40+j;
+						Image_Edge[i][1]=COLUMN/2+j;
 						break;
 					}
 				}
 			}
 		}
-		if(i<(ROW-3))
+		if(i<(ROW-10))
 		{
+			Found_flag=0;
 			for(j=0;j<5;j++)
 			{
-				if(Image_bw[i][Image_Edge[i+1][0]+2-j]==0)
-				{
-					Image_Edge[i][0]=Image_Edge[i+1][0]+2-j;
-					break;
-				}
-			}
-			for(j=0;j<5;j++)
-			{
-				if(Image_bw[i][Image_Edge[i+1][1]-2+j]==0)
+				if((Image_bw[i/8][Image_Edge[i+1][1]-2+j]&(1<<(i%8)))==0)
 				{
 					Image_Edge[i][1]=Image_Edge[i+1][1]-2+j;
+					Found_flag=1;
 					break;
 				}
 			}
+			if(Found_flag==0)
+			{
+				Image_Edge[i][1]=Image_Edge[i+1][1];
+			}
+			Found_flag=0;
+			for(j=0;j<5;j++)
+			{
+				if((Image_bw[i/8][Image_Edge[i+1][0]+2-j]&(1<<(i%8)))==0)
+				{
+					Image_Edge[i][0]=Image_Edge[i+1][0]+2-j;
+					Found_flag=1;
+					break;
+				}
+			}
+			if(Found_flag==0)
+			{
+				Image_Edge[i][0]=Image_Edge[i+1][0];
+			}
+
 		}
 	}
 }
@@ -64,13 +78,13 @@ void test(void)
 	{
 		for(j=0;j<COLUMN;j++)
 		{
-			Image_bw[i][j]=255;
+			Image_bw[i/8][j]&=~(1<<(i%8));
 		}
 	}
 	for(i=0;i<ROW;i++)
 	{
-		Image_bw[i][Image_Edge[i][0]]=0;
-		Image_bw[i][Image_Edge[i][1]]=0;
+		Image_bw[i/8][Image_Edge[i][0]]|=(1<<(i%8));
+		Image_bw[i/8][Image_Edge[i][1]]|=(1<<(i%8));
 	}
 }
 void Dynamic_threshold(void)
@@ -113,8 +127,8 @@ void Image_binaryzation()
 	{
 		for(j=0;j<COLUMN;j++)
 		{
-			if(Image_Data[i][j]<Image_T) Image_bw[i][j]=0;
-			else Image_bw[i][j]=255;
+			if(Image_Data[i][j]<Image_T+5) Image_bw[i/8][j]&=~(1<<(i%8)) ;
+			else Image_bw[i/8][j]|=(1<<(i%8));
 		}
 	}
 }
@@ -175,12 +189,6 @@ void EPORT_init(void)
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL
 				   &~MCF_INTC_IMRL_INT_MASK1 
 				   &~MCF_INTC_IMRL_INT_MASK3;
-				   
-	//设置中断优先级
-	MCF_INTC0_ICR01=MCF_INTC_ICR_IP(3)+MCF_INTC_ICR_IL(4);
-	MCF_INTC0_ICR03=MCF_INTC_ICR_IP(2)+MCF_INTC_ICR_IL(4);
-	//MCF_INTC0_ICR05=MCF_INTC_ICR_IP(4)+MCF_INTC_ICR_IL(4);
-	//MCF_INTC0_ICR07=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(4);
 }
 /************************************************************/
 /*                    EPORT1中断服务函数                    */
@@ -202,7 +210,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 {
 	MCF_EPORT_EPFR = MCF_EPORT_EPFR_EPF3;           //清除标志位
 	HREF_Flag = 1;
-	if((Line_C%8)==1)
+	if((Line_C%6)==1)
 	{
 		MCF_DMA_BCR(0)=COLUMN;
 		MCF_DMA_DAR(0)=(uint32)Image_Data[Line_ROW];
@@ -224,8 +232,9 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		Line_ROW=0;
 		Dynamic_threshold();
 		Image_binaryzation();
-		//Edge_detect();
-		//UART_SendBWImage();
+		Edge_detect();
+		if(graph_switch==0) test();
+		//LCD_CLS();
 	}
 }
 void SCCB_Init(void)
@@ -371,7 +380,6 @@ void Init_OV7620_DMA()
 	MCF_DTIM_DTMR(0) |= MCF_DTIM_DTMR_RST;//开启DTIM
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_INT_MASK9;
-	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(7)+MCF_INTC_ICR_IL(7);
-	mcf_intc
+	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(6);
 	EPORT_init();
 }

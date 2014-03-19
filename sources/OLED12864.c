@@ -842,7 +842,7 @@ void LCD_P6x8int(byte x,byte y,int num)
 //参数：起始点坐标(x,y),x的范围0～127，y为页的范围0～7
 //返回：无
 //==============================================================
-void Draw_BMP(byte x0,byte y0,byte x1,byte y1,char bmp[])
+void Draw_BMP(byte x0,byte y0,byte x1,byte y1,unsigned char bmp[])
 { 	
   uint ii=0;
   byte x,y;
@@ -858,3 +858,9 @@ void Draw_BMP(byte x0,byte y0,byte x1,byte y1,char bmp[])
 	    }
 	}
 }
+/*
+void LCD_DRAW_IMG(byte x0,byte y0,byte x1,byte y1,bool img[][])//只能用于显示80*40的图像
+{
+	unsigned char bmg[400];
+	if(
+	*/

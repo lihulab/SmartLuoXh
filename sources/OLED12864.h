@@ -17,7 +17,7 @@
  void LCD_P6x8int(byte x,byte y,int num);
  void LCD_PutPixel(byte x,byte y);
  void LCD_Rectangle(byte x1,byte y1,byte x2,byte y2,byte gif);
- void Draw_BMP(byte x0,byte y0,byte x1,byte y1,char bmp[]); 
+ void Draw_BMP(byte x0,byte y0,byte x1,byte y1,unsigned char bmp[]); 
  void LCD_Fill(byte dat);
  void LCD_test(byte x1,byte y1,byte x2,byte y2);
 #endif
