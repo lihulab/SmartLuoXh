@@ -72,14 +72,19 @@ __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 	//get_gyro_angle();
 	Kalman_Filter();
 	angle_out();
-	//get_speed();
-	if(i==5)
+	Dir_control();
+	get_speed();
+	if(i==10)
 	{
-		get_speed();
 		speed_out(Set_speed);
+		Left_motor_speed=0;
+		Right_motor_speed=0;
 		i=0;
 	}
-	set_motor_highduty(Speed_L_PID.Out+Angle_PID.Out,Speed_R_PID.Out+Angle_PID.Out);
+	//set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out+Set_left_speed,Speed_R_PID.Out-Angle_PID.Out+Set_right_speed);
+	//set_motor_highduty(Set_left_speed,Set_right_speed);
+	//set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out,Speed_R_PID.Out-Angle_PID.Out);
+	set_motor_highduty(-Angle_PID.Out+Set_left_speed,-Angle_PID.Out+Set_right_speed);
 	//while(1);
 }
 __declspec(interrupt:0) void PIT1_handler(void)//interrupt source 56

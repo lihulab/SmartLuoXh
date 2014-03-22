@@ -6,35 +6,70 @@
 unsigned char Image_Data[ROW][COLUMN];//采集到的图像数组，起始点喂左上角
 unsigned char Image_bw[ROW/8][COLUMN];
 unsigned char Image_Edge[ROW][2];
+unsigned char Image_Middle[ROW];
 unsigned char Image_T=100;//二值化图像的值
 unsigned char VSYN_Flag,HREF_Flag;
 unsigned int Point_C=0,Line_C=0,Line_ROW=0;
+unsigned char Valid_Line=10;//用于记录有效行数量
+unsigned char Right_miss_flag=0,Left_miss_flag=0;
+char Def_middle=COLUMN/2;
+void Calc_error()
+{
+	char i;
+	for(i=ROW-4;i>=Valid_Line;i--)
+	{
+		Dir_PID.Error=0;
+		Dir_PID.Error+=Image_Middle[i]-(Image_Middle[ROW-1]+Image_Middle[ROW-2]+Image_Middle[ROW-3])/3;
+	}
+}
+void Get_valid_line()
+{
+	char i;
+	for(i=ROW-11;i>=0;i--)
+	{
+		if(fabs(Image_Edge[i][1]-Image_Edge[i][0])<30) break;
+		Valid_Line=i;
+	}
+}
+void Get_middle()
+{
+	char i;
+	//Valid_Line = 30;
+	for(i=ROW-1;i>=Valid_Line;i--)
+	{
+		Image_Middle[i]=(Image_Edge[i][0]+Image_Edge[i][1])/2;
+	}
+	for(i=Valid_Line-1;i>=0;i--) Image_Middle[i]=0;
+}
 void Edge_detect()
 {
 	char i,j;
 	char Found_flag=0;//用于表示当前行有没有找到边沿，如果没有找到为0
+	
 	for(i=ROW-1;i>=0;i--)
 	{
 		if(i>=(ROW-10))
 		{
 			if(1)//((Image_bw[i/8][COLUMN/2]&(1<<(i%8)))!=0)&&((Image_bw[i/8][COLUMN/2-1]&(1<<(i%8)))!=0))
 			{
-				for(j=0;j<COLUMN/2;j++)
+				for(j=0;j<Def_middle;j++)
 				{
-					if((Image_bw[i/8][COLUMN/2-1-j]&(1<<(i%8)))==0)
+					Image_Edge[i][0]=Def_middle-1-j;
+					if((Image_bw[i/8][Def_middle-1-j]&(1<<(i%8)))==0)
 					{
-						Image_Edge[i][0]=COLUMN/2-1-j;
 						break;
 					}
 				}
-				for(j=0;j<COLUMN/2;j++)
+				for(j=0;j<COLUMN-Def_middle;j++)
 				{
-					if((Image_bw[i/8][COLUMN/2+j]&(1<<(i%8)))==0)
+					Image_Edge[i][1]=Def_middle+j;
+					if((Image_bw[i/8][Def_middle+j]&(1<<(i%8)))==0)
 					{
-						Image_Edge[i][1]=COLUMN/2+j;
 						break;
 					}
 				}
+				if(Image_Edge[i][0]<10) Def_middle=COLUMN/4;
+				else if(Image_Edge[i][0]>=10) Def_middle=COLUMN/2;
 			}
 		}
 		if(i<(ROW-10))
@@ -42,9 +77,9 @@ void Edge_detect()
 			Found_flag=0;
 			for(j=0;j<5;j++)
 			{
+				Image_Edge[i][1]=Image_Edge[i+1][1]-2+j;
 				if((Image_bw[i/8][Image_Edge[i+1][1]-2+j]&(1<<(i%8)))==0)
 				{
-					Image_Edge[i][1]=Image_Edge[i+1][1]-2+j;
 					Found_flag=1;
 					break;
 				}
@@ -56,9 +91,9 @@ void Edge_detect()
 			Found_flag=0;
 			for(j=0;j<5;j++)
 			{
+				Image_Edge[i][0]=Image_Edge[i+1][0]+2-j;
 				if((Image_bw[i/8][Image_Edge[i+1][0]+2-j]&(1<<(i%8)))==0)
 				{
-					Image_Edge[i][0]=Image_Edge[i+1][0]+2-j;
 					Found_flag=1;
 					break;
 				}
@@ -85,6 +120,8 @@ void test(void)
 	{
 		Image_bw[i/8][Image_Edge[i][0]]|=(1<<(i%8));
 		Image_bw[i/8][Image_Edge[i][1]]|=(1<<(i%8));
+		//Image_bw[i/8][Image_Middle[i]]|=(1<<(i%8));
+		Image_bw[i/8][Def_middle]|=(1<<(i%8));
 	}
 }
 void Dynamic_threshold(void)
@@ -127,7 +164,7 @@ void Image_binaryzation()
 	{
 		for(j=0;j<COLUMN;j++)
 		{
-			if(Image_Data[i][j]<Image_T+5) Image_bw[i/8][j]&=~(1<<(i%8)) ;
+			if(Image_Data[i][j]<Image_T+10) Image_bw[i/8][j]&=~(1<<(i%8)) ;
 			else Image_bw[i/8][j]|=(1<<(i%8));
 		}
 	}
@@ -233,6 +270,9 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		Dynamic_threshold();
 		Image_binaryzation();
 		Edge_detect();
+		Get_valid_line();
+		Get_middle();
+		Calc_error();
 		if(graph_switch==0) test();
 		//LCD_CLS();
 	}
@@ -357,10 +397,10 @@ void Init_OV7620_DMA()
 	MCF_GPIO_DDRTE = 0;
 	SCCB_Init();
 	SCCB_Bytewrite(0x42,0x14,0x24);
-	SCCB_Bytewrite(0x42,0x11,0x04);
+	SCCB_Bytewrite(0x42,0x11,0x01);
 	MCF_DMA_DSR(0) |= MCF_DMA_DSR_DONE;//清空传输完成标志位
 	MCF_SCM_MPR = MCF_SCM_MPR_MPR(0x05);
-	MCF_SCM_DMAREQC = MCF_SCM_DMAREQC_DMAC0(0x04);//设定DMA0为DTIM0触发
+	MCF_SCM_DMAREQC |= MCF_SCM_DMAREQC_DMAC0(0x04);//设定DMA0为DTIM0触发
 	MCF_DMA_SAR(0)=(uint32)0x40100030;//源地址为PTE
 	MCF_DMA_DAR(0)=(uint32)Image_Data[0];//目的地址为图像数组
 	MCF_DMA_BCR(0)=80;//传输长度为每行的长度，这里是80个像素

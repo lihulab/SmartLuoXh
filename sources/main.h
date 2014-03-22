@@ -26,4 +26,5 @@ extern float Car_speed;
 extern struct PID Speed_L_PID;
 extern struct PID Speed_R_PID;
 extern struct PID Angle_PID;
+extern struct PID Dir_PID;
 extern char graph_switch;

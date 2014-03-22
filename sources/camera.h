@@ -1,4 +1,5 @@
 void Init_OV7620_DMA();
+void UART_SendImage();
 __declspec(interrupt:0) void DMA0_inter(void);
 __declspec(interrupt:0) void EPORT3_inter(void);
 __declspec(interrupt:0) void EPORT1_inter(void);
@@ -14,5 +15,7 @@ extern unsigned char Image_Data[ROW][COLUMN];
 extern unsigned char Image_bw[ROW/8][COLUMN];
 extern unsigned char Image_Edge[ROW][2];
 extern unsigned char Image_T;//二值化图像的值
+extern unsigned char Image_Middle[ROW];
 extern unsigned char VSYN_Flag,HREF_Flag;
 extern unsigned int Point_C,Line_C,Line_ROW;
+extern unsigned char Valid_Line;

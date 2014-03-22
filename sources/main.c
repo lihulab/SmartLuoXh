@@ -3,11 +3,12 @@ float Car_speed = 0;
 struct PID Speed_L_PID;
 struct PID Speed_R_PID;
 struct PID Angle_PID;
-char temp=0,graph_switch=0;;//用于参数切换
+struct PID Dir_PID;
+char temp=0,graph_switch=0;//用于参数切换
 int main(void)
 {
-	Angle_PID.Proportion = 15;
-	Angle_PID.Derivative = 0.15;
+	Angle_PID.Proportion = 27;
+	Angle_PID.Derivative = 0.2;
 	Speed_L_PID.Proportion = 3;
 	Speed_L_PID.Derivative = 0;
 	Speed_L_PID.Integral = 0.000;
@@ -18,8 +19,10 @@ int main(void)
 	Speed_R_PID.Integral = 0.000;
 	Speed_R_PID.Error_P = 0;
 	Speed_R_PID.Error_L = 0;
+	Dir_PID.Error = 0;
+	Dir_PID.Proportion = 2;
 	pll_init_128M();
-	UART_INIT(0,128000000,19200,0);
+	UART_INIT(0,128000000,57600,0);
 	PWM_INIT();
 	init_PIT0();
 	init_ADC();
@@ -30,10 +33,11 @@ int main(void)
 	EnableInterrupts;
 	while(1)
 	{		
-		LCD_P6x8float(0, 2, Speed_L_PID.Out);
-		LCD_P6x8float(0, 3, Speed_R_PID.Out);
-		LCD_P6x8float(0, 4, angle);
-		LCD_P6x8float(0, 5, Angle_PID.Out);
+		//LCD_P6x8float(0, 2, Left_motor_speed);
+		//LCD_P6x8float(0, 3, Right_motor_speed);
+		//LCD_P6x8float(0, 4, angle);
+		//LCD_P6x8float(0, 5, Angle_PID.Out);
+		//LCD_P6x8int(40, 6, Valid_Line);
 		if(key1_press())
 		{
 			if(key5_press())
@@ -42,12 +46,12 @@ int main(void)
 				else graph_switch=0;
 			}
 			temp++;
-			if(temp==3) temp=0;
+			if(temp==4) temp=0;
 		}
 		if(temp==0)
 		{
 			LCD_P6x8float(0, 0, Speed_L_PID.Proportion);
-			LCD_P6x8float(0, 1, Speed_L_PID.Derivative);
+			LCD_P6x8float(0, 1, Speed_L_PID.Integral);
 			if(key2_press())
 			{
 				Speed_L_PID.Proportion-=0.5;
@@ -55,8 +59,8 @@ int main(void)
 			}
 			if(key3_press())
 			{
-				Speed_L_PID.Derivative-=0.01;
-				Speed_R_PID.Derivative-=0.01;
+				Speed_L_PID.Integral-=0.01;
+				Speed_R_PID.Integral-=0.01;
 			}
 			if(key4_press())
 			{
@@ -65,8 +69,8 @@ int main(void)
 			}
 			if(key5_press())
 			{
-				Speed_L_PID.Derivative+=0.01;
-				Speed_R_PID.Derivative+=0.01;
+				Speed_L_PID.Integral+=0.01;
+				Speed_R_PID.Integral+=0.01;
 			}
 			LCD_P6x8Str(0, 6,"Speed");
 		}
@@ -94,8 +98,9 @@ int main(void)
 		}
 		if(temp==2)
 		{
-			LCD_P6x8Str(0,0,"Set spe4ed");
+			LCD_P6x8Str(0,0,"Set speed");
 			LCD_P6x8float(0, 1, Set_speed);
+
 			if(key2_press())
 			{
 				Set_speed+=1;
@@ -105,6 +110,11 @@ int main(void)
 				Set_speed-=1;
 			}
 		}
-		Draw_BMP(40, 0, 120, 4, Image_bw[0]);
+		if(temp==3)
+		{
+			LCD_P6x8float(0, 1, Dir_PID.Error);
+		}
+		Draw_BMP(40, 0, 120, 4, Image_bw[0]); 
+		//UART_SendImage();
 	}
 }
