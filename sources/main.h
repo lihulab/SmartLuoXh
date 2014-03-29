@@ -11,6 +11,7 @@
 #include "camera.h"
 #include "key.h"
 #define EnableInterrupts asm { move.w SR,D0; andi.l #0xF8FF,D0; move.w D0,SR;  }
+void Blink_LED1();
 
 struct PID
 {
@@ -22,9 +23,18 @@ struct PID
 	float Error_L;
 	float Error_P;
 };
+struct DIR
+{
+	float k;
+	float b;
+	float Qk;
+	float QB;
+	float Out;
+};
+
 extern float Car_speed;
+extern struct DIR Dir;
 extern struct PID Speed_L_PID;
 extern struct PID Speed_R_PID;
 extern struct PID Angle_PID;
-extern struct PID Dir_PID;
 extern char graph_switch;

@@ -64,9 +64,10 @@ void PIT1_stop(void)
 
 __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 {	
-	static char i=0;
+	static int i=0;
+	//i++;
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
-	i++;
+	Blink_LED1();
 	get_gyro();
 	get_gravity();
 	//get_gyro_angle();
@@ -74,18 +75,13 @@ __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 	angle_out();
 	Dir_control();
 	get_speed();
-	if(i==10)
-	{
-		speed_out(Set_speed);
-		Left_motor_speed=0;
-		Right_motor_speed=0;
-		i=0;
-	}
-	//set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out+Set_left_speed,Speed_R_PID.Out-Angle_PID.Out+Set_right_speed);
+	speed_out(Set_speed);
+	set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out+Set_left_speed,Speed_R_PID.Out-Angle_PID.Out+Set_right_speed);
 	//set_motor_highduty(Set_left_speed,Set_right_speed);
+	//set_motor_highduty(Set_speed,Set_speed);
 	//set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out,Speed_R_PID.Out-Angle_PID.Out);
-	set_motor_highduty(-Angle_PID.Out+Set_left_speed,-Angle_PID.Out+Set_right_speed);
-	//while(1);
+	//set_motor_highduty(-Angle_PID.Out+Set_left_speed,-Angle_PID.Out+Set_right_speed);
+	//set_motor_highduty(Speed_L_PID.Out,Speed_R_PID.Out);
 }
 __declspec(interrupt:0) void PIT1_handler(void)//interrupt source 56
 {

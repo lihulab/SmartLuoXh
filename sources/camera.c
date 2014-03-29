@@ -4,32 +4,115 @@
  */
 #include "main.h"
 unsigned char Image_Data[ROW][COLUMN];//采集到的图像数组，起始点喂左上角
-unsigned char Image_bw[ROW/8][COLUMN];
+unsigned char Image_bw[ROW][COLUMN];
+unsigned char Image_disp[ROW/8+1][COLUMN];
 unsigned char Image_Edge[ROW][2];
 unsigned char Image_Middle[ROW];
 unsigned char Image_T=100;//二值化图像的值
 unsigned char VSYN_Flag,HREF_Flag;
 unsigned int Point_C=0,Line_C=0,Line_ROW=0;
-unsigned char Valid_Line=10;//用于记录有效行数量
+unsigned char Valid_Line=45;//用于记录有效行数量
 unsigned char Right_miss_flag=0,Left_miss_flag=0;
 char Def_middle=COLUMN/2;
-void Calc_error()
+/*************************************
+/最小二乘法，入口参数：    
+/int x1 x2      需要处理的最小行到最大行       //必须保证x2〉x1
+*************************************/
+void Calc_slope(int x1, int x2)
 {
-	char i;
-	for(i=ROW-4;i>=Valid_Line;i--)
+	float line_xi=0,line_yi=0,line_A=0,line_B=0,line_C=0,line_K=0;//分别表示x累加和，y累加和，累加和的乘积，乘积的累加和，x累加和的平方，x平方的累加和
+	int i;
+	int n=x2-x1+1;
+	int temp[60];
+	for(i=x1;i<=x2;i++)
+		temp[i]=((Image_Edge[i][0]+Image_Edge[i][1])/2-39.5)*75/(75-i)+39.5;//图像矫正
+	for(i=x1;i<=x2;i++) //先对数组中的中心位置移位，即图像的中心线认纵轴认为是x轴，水平线认为是y轴
 	{
-		Dir_PID.Error=0;
-		Dir_PID.Error+=Image_Middle[i]-(Image_Middle[ROW-1]+Image_Middle[ROW-2]+Image_Middle[ROW-3])/3;
+		line_xi+=i;           //x的累加和
+		line_yi+=temp[i];     //y的累加和
+		line_B+=i*temp[i];    //乘积的累加和
+		line_K+=i*i;          //x平方的累加和
 	}
+	line_A=line_xi*line_yi;           //累加和的乘积
+	line_C=line_xi*line_xi;           //x累加和的平方
+	Dir.k=(int)((line_A-n*line_B)/(line_C-n*line_K)*100);
+	Dir.b=(int)((line_yi-Dir.k/100*line_xi)/n-40);
+
+
+	//Mid_err=Get_average(x1,x2);
+}
+
+//取中间值
+unsigned char middle(uint8 a,uint8 b,uint8 c)
+{
+  unsigned char max,min;
+  max=a;
+  min=b;
+  if(a<=b)
+  {
+    min=a;
+    max=b;
+  }//对这两个数排序
+  if(c<min)
+    return min;
+  else if(c<=max)
+    return c;
+  else
+    return max;
+} 
+void Black_lvbo()
+{
+  unsigned char i;
+  for(i=1;i<ROW-4;i++)
+  {
+    if(( Image_Edge[i][0]<= Image_Edge[i+1][0])&& ((Image_Edge[i+2][0]< Image_Edge[i+1][0])||(Image_Edge[i+2][0]> Image_Edge[i+3][0]))&& (Image_Edge[i+1][0]<= Image_Edge[i+3][0]))
+    {
+      Image_Edge[i+2][0]=(Image_Edge[i+3][0]+Image_Edge[i+1][0])/2;
+    }
+    if(( Image_Edge[i][0]>= Image_Edge[i+1][0])&& ((Image_Edge[i+2][0]> Image_Edge[i+1][0])||(Image_Edge[i+2][0]< Image_Edge[i+3][0]))&& (Image_Edge[i+1][0]>= Image_Edge[i+3][0]))
+    {
+      Image_Edge[i+2][0]=(Image_Edge[i+3][0]+Image_Edge[i+1][0])/2;
+    }
+    
+    
+    if(( Image_Edge[i][1]>= Image_Edge[i+1][1])&& ((Image_Edge[i+2][1]> Image_Edge[i+1][1])||(Image_Edge[i+2][1]< Image_Edge[i+3][1]))&& (Image_Edge[i+1][1]>= Image_Edge[i+3][1]))
+    {
+      Image_Edge[i+2][1]=(Image_Edge[i+3][1]+Image_Edge[i+1][1])/2;
+    }
+    if(( Image_Edge[i][1]<= Image_Edge[i+1][1])&& ((Image_Edge[i+2][1]< Image_Edge[i+1][1])||(Image_Edge[i+2][1]> Image_Edge[i+3][1]))&& (Image_Edge[i+1][1]<= Image_Edge[i+3][1]))
+    {
+      Image_Edge[i+2][1]=(Image_Edge[i+3][1]+Image_Edge[i+1][1])/2;
+    }  
+  }
 }
 void Get_valid_line()
 {
-	char i;
-	for(i=ROW-11;i>=0;i--)
-	{
-		if(fabs(Image_Edge[i][1]-Image_Edge[i][0])<30) break;
-		Valid_Line=i;
+	uint8 i,j;
+	int Mid[ROW];
+	  
+	for(i=0;i<45;i++)
+	{      
+	if(((Image_Edge[i][0] - Image_Edge[i+1][0]) > 5)||((Image_Edge[i+1][1] - Image_Edge[i][1]) > 5))
+		if(((Image_Edge[i][0] - Image_Edge[i+2][0]) > 5)||((Image_Edge[i+2][1] - Image_Edge[i][1]) > 5))
+			if(((Image_Edge[i][0] - Image_Edge[i+3][0]) > 5)||((Image_Edge[i+3][1] - Image_Edge[i][1]) > 5))
+	  break;
 	}
+	j=i;
+	  
+	for(i=0;i<j;i++)
+	{      
+		Mid[i] = (Image_Edge[i][0]+Image_Edge[i][1])/2;
+	} 
+	for(i=1;i<j-1;i++)
+	{      
+		Mid[i] = middle(Mid[i-1],Mid[i],Mid[i+1]);
+	}
+	for(i=10;i<j-1;i++)
+	{
+		if(Mid[i]<10 || Mid[i]>70||fabs(Image_Edge[i][1]-Image_Edge[i][0])<10) break;
+	}
+	if(i>45) i=45;
+	Valid_Line=i;
 }
 void Get_middle()
 {
@@ -41,71 +124,6 @@ void Get_middle()
 	}
 	for(i=Valid_Line-1;i>=0;i--) Image_Middle[i]=0;
 }
-void Edge_detect()
-{
-	char i,j;
-	char Found_flag=0;//用于表示当前行有没有找到边沿，如果没有找到为0
-	
-	for(i=ROW-1;i>=0;i--)
-	{
-		if(i>=(ROW-10))
-		{
-			if(1)//((Image_bw[i/8][COLUMN/2]&(1<<(i%8)))!=0)&&((Image_bw[i/8][COLUMN/2-1]&(1<<(i%8)))!=0))
-			{
-				for(j=0;j<Def_middle;j++)
-				{
-					Image_Edge[i][0]=Def_middle-1-j;
-					if((Image_bw[i/8][Def_middle-1-j]&(1<<(i%8)))==0)
-					{
-						break;
-					}
-				}
-				for(j=0;j<COLUMN-Def_middle;j++)
-				{
-					Image_Edge[i][1]=Def_middle+j;
-					if((Image_bw[i/8][Def_middle+j]&(1<<(i%8)))==0)
-					{
-						break;
-					}
-				}
-				if(Image_Edge[i][0]<10) Def_middle=COLUMN/4;
-				else if(Image_Edge[i][0]>=10) Def_middle=COLUMN/2;
-			}
-		}
-		if(i<(ROW-10))
-		{
-			Found_flag=0;
-			for(j=0;j<5;j++)
-			{
-				Image_Edge[i][1]=Image_Edge[i+1][1]-2+j;
-				if((Image_bw[i/8][Image_Edge[i+1][1]-2+j]&(1<<(i%8)))==0)
-				{
-					Found_flag=1;
-					break;
-				}
-			}
-			if(Found_flag==0)
-			{
-				Image_Edge[i][1]=Image_Edge[i+1][1];
-			}
-			Found_flag=0;
-			for(j=0;j<5;j++)
-			{
-				Image_Edge[i][0]=Image_Edge[i+1][0]+2-j;
-				if((Image_bw[i/8][Image_Edge[i+1][0]+2-j]&(1<<(i%8)))==0)
-				{
-					Found_flag=1;
-					break;
-				}
-			}
-			if(Found_flag==0)
-			{
-				Image_Edge[i][0]=Image_Edge[i+1][0];
-			}
-
-		}
-	}
-}
 void test(void)
 {
 	unsigned char i,j;
@@ -113,15 +131,15 @@ void test(void)
 	{
 		for(j=0;j<COLUMN;j++)
 		{
-			Image_bw[i/8][j]&=~(1<<(i%8));
+			Image_disp[i/8][j]&=~(1<<(i%8));
 		}
 	}
-	for(i=0;i<ROW;i++)
+	for(i=ROW-Valid_Line;i<ROW;i++)
 	{
-		Image_bw[i/8][Image_Edge[i][0]]|=(1<<(i%8));
-		Image_bw[i/8][Image_Edge[i][1]]|=(1<<(i%8));
-		//Image_bw[i/8][Image_Middle[i]]|=(1<<(i%8));
-		Image_bw[i/8][Def_middle]|=(1<<(i%8));
+		Image_disp[i/8][Image_Edge[ROW-i-1][0]]|=(1<<(i%8));
+		Image_disp[i/8][Image_Edge[ROW-i-1][1]]|=(1<<(i%8));
+		//Image_disp[i/8][Image_Middle[i]]|=(1<<(i%8));
+		//Image_disp[i/8][Def_middle]|=(1<<(i%8));
 	}
 }
 void Dynamic_threshold(void)
@@ -166,6 +184,18 @@ void Image_binaryzation()
 		{
 			if(Image_Data[i][j]<Image_T+10) Image_bw[i/8][j]&=~(1<<(i%8)) ;
 			else Image_bw[i/8][j]|=(1<<(i%8));
+		}
+	}
+}
+void Image_display()
+{
+	unsigned int i,j;
+	for(i=0;i<ROW;i++)
+	{
+		for(j=0;j<COLUMN;j++)
+		{
+			if(Image_bw[ROW-1-i][COLUMN-1-j]==1) Image_disp[i/8][j]&=~(1<<(i%8)) ;
+			else Image_disp[i/8][j]|=(1<<(i%8));
 		}
 	}
 }
@@ -241,17 +271,64 @@ __declspec(interrupt:0) void EPORT1_inter(void)
 }
 
 /************************************************************/
-/*                    EPORT3中断服务函数                    */
+/*                    行中断中断服务函数                    */
 /************************************************************/
 __declspec(interrupt:0) void EPORT3_inter(void)
 {
+	unsigned char i,j;
 	MCF_EPORT_EPFR = MCF_EPORT_EPFR_EPF3;           //清除标志位
 	HREF_Flag = 1;
-	if((Line_C%6)==1)
+	if((Line_C%4)==1)
 	{
 		MCF_DMA_BCR(0)=COLUMN;
 		MCF_DMA_DAR(0)=(uint32)Image_Data[Line_ROW];
 		MCF_DMA_DCR(0)|=MCF_DMA_DCR_EEXT;
+	}
+	else if((Line_C%4)==2)
+	{
+		/*二值化*/
+		for(j=0;j<COLUMN;j++)
+		{
+			if(Image_Data[Line_ROW-1][j]>Image_T) Image_bw[Line_ROW-1][j]=1;
+			else Image_bw[Line_ROW-1][j]=0;
+		}
+		/*前十行滤波*/
+		if(Line_ROW<30)
+		{
+			for(i=1;i<COLUMN-1;i++)
+			{
+				if((Image_bw[Line_ROW-1][i+1]==1)&&(Image_bw[Line_ROW-1][i-1]==1)) Image_bw[Line_ROW-1][i]=1;
+			}
+		}
+	}
+	else if((Line_C%4)==3)
+	{
+		/*提取边线*/
+		if((Line_ROW-1)==0) 
+		{
+			if(((Image_Edge[0][0]+Image_Edge[0][1])/2)==0) Def_middle=COLUMN/2;
+			else Def_middle=(Image_Edge[0][0]+Image_Edge[0][1])/2;
+		}
+		else
+		{
+			Def_middle = (Image_Edge[Line_ROW-2][0]+Image_Edge[Line_ROW-2][1])/2;
+		}
+		for(i=Def_middle;i>1;i--)
+		{
+			if(Image_bw[Line_ROW-1][i]==0)
+			{
+				break;
+			}
+			Image_Edge[Line_ROW-1][0]=COLUMN-i;
+		}
+		for(i=Def_middle;i<COLUMN-2;i++)
+		{
+			if(Image_bw[Line_ROW-1][i]==0)
+			{
+				break;
+			}
+			Image_Edge[Line_ROW-1][1]=COLUMN-i;
+		}
 	}
 	Line_C++;
 	if(Line_C==240)
@@ -268,11 +345,15 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		MCF_EPORT_EPIER&=~MCF_EPORT_EPIER_EPIE3;
 		Line_ROW=0;
 		Dynamic_threshold();
-		Image_binaryzation();
-		Edge_detect();
+		Image_display();
+		Black_lvbo();
+		//Image_binaryzation();
+		//Edge_detect();
 		Get_valid_line();
-		Get_middle();
-		Calc_error();
+		Calc_slope(0,(Valid_Line>45?45:Valid_Line));
+		//Get_middle();
+		//Calc_error();
+
 		if(graph_switch==0) test();
 		//LCD_CLS();
 	}

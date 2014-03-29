@@ -45,14 +45,17 @@ void Coder_init()
 /************************************************************/
 void get_speed()//向前为正，向后为负
 {
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) Left_motor_speed += (1000-MCF_DMA_BCR(1)&0xffffff)/10.0;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) 
+	{
+		Left_motor_speed = Left_motor_speed*0.8+(1000-MCF_DMA_BCR(1)&0xffffff)*0.2;
+	}
 	else
 	{
-		Left_motor_speed -= (1000 - MCF_DMA_BCR(1)&0xffffff)/10.0;
-		//Left_motor_speed = -Left_motor_speed/10.0;
+		Left_motor_speed = Left_motor_speed*0.8-(1000 - MCF_DMA_BCR(1)&0xffffff)*0.2;
+		//Left_motor_speed = -Left_motor_speed;
 	}
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed+=MCF_GPT_GPTPACNT/10.0;//要通过测量算出一个脉冲代表的距离
-	else Right_motor_speed -= (MCF_GPT_GPTPACNT)/10.0;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=Right_motor_speed*0.8+MCF_GPT_GPTPACNT*0.2;//要通过测量算出一个脉冲代表的距离
+	else Right_motor_speed = Right_motor_speed*0.8 -(MCF_GPT_GPTPACNT)*0.2;
 	MCF_GPT_GPTPACNT=0;
 	MCF_DMA_BCR(1)=1000;
 	Car_speed=(Right_motor_speed+Left_motor_speed)/2;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
@@ -70,13 +73,20 @@ void PWM_INIT(void)
 	MCF_GPIO_PTCPAR=MCF_GPIO_PTCPAR_DTIN1_PWM2
 				   |MCF_GPIO_PTCPAR_DTIN2_PWM4;
 	
+	/*
 	MCF_GPIO_PTAPAR=MCF_GPIO_PTAPAR_ICOC0_PWM1
 				   |MCF_GPIO_PTAPAR_ICOC1_PWM3;
-				   
+	*/
+	MCF_GPIO_PTAPAR|=MCF_GPIO_PTAPAR_ICOC0_GPIO
+					|MCF_GPIO_PTAPAR_ICOC1_GPIO;
+	MCF_GPIO_DDRTA|=MCF_GPIO_DDRTA_DDRTA0
+					|MCF_GPIO_DDRTA_DDRTA1;
+	MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA0;
+	MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA1;
 	//设置PWM极性，高有效
-	MCF_PWM_PWMPOL=MCF_PWM_PWMPOL_PPOL1
-				  |MCF_PWM_PWMPOL_PPOL2
-				  |MCF_PWM_PWMPOL_PPOL3
+	MCF_PWM_PWMPOL=//MCF_PWM_PWMPOL_PPOL1
+				  MCF_PWM_PWMPOL_PPOL2
+				  //|MCF_PWM_PWMPOL_PPOL3
 				  |MCF_PWM_PWMPOL_PPOL4;
 
 	//设置A时钟频率和B时钟频率，分频系数为4，总线频率经过分频后为10MHz
@@ -89,9 +99,9 @@ void PWM_INIT(void)
 
 
 	//选择PWM时钟，选择SA或SB时钟
-	MCF_PWM_PWMCLK=MCF_PWM_PWMCLK_PCLK1
-				  |MCF_PWM_PWMCLK_PCLK2
-				  |MCF_PWM_PWMCLK_PCLK3
+	MCF_PWM_PWMCLK=//MCF_PWM_PWMCLK_PCLK1
+				  MCF_PWM_PWMCLK_PCLK2
+				  //|MCF_PWM_PWMCLK_PCLK3
 				  |MCF_PWM_PWMCLK_PCLK4;
 
 	//设置PWM对齐方式，设置为边缘对齐。
@@ -99,70 +109,59 @@ void PWM_INIT(void)
 
 
 	//复位PWM计数器
-	MCF_PWM_PWMCNT1=0;
+	//MCF_PWM_PWMCNT1=0;
 	MCF_PWM_PWMCNT2=0;
-	MCF_PWM_PWMCNT3=0;
+	//MCF_PWM_PWMCNT3=0;
 	MCF_PWM_PWMCNT4=0;
 	
 	//设置PWM周期
-	MCF_PWM_PWMPER(1)=200;	//10KHz，先把分辨率设为100，最高设定为256
+	//MCF_PWM_PWMPER(1)=200;	//10KHz，先把分辨率设为100，最高设定为256
 	MCF_PWM_PWMPER(2)=200;	//10KHz
-	MCF_PWM_PWMPER(3)=200;	//10KHz
+	//MCF_PWM_PWMPER(3)=200;	//10KHz
 	MCF_PWM_PWMPER(4)=200;
 	
 	//设置PWM的占空比
-	MCF_PWM_PWMDTY(1)=0;
+	//MCF_PWM_PWMDTY(1)=0;
 	MCF_PWM_PWMDTY(2)=0;
-	MCF_PWM_PWMDTY(3)=0;
+	//MCF_PWM_PWMDTY(3)=0;
 	MCF_PWM_PWMDTY(4)=0;
 	
 	//使能PWM输出
-	MCF_PWM_PWME=MCF_PWM_PWME_PWME1
-				|MCF_PWM_PWME_PWME2
-				|MCF_PWM_PWME_PWME3
+	MCF_PWM_PWME=//MCF_PWM_PWME_PWME1
+				MCF_PWM_PWME_PWME2
+				//|MCF_PWM_PWME_PWME3
 				|MCF_PWM_PWME_PWME4;
 }
 void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负为向后走
 {
-	int HighdutyA=0,HighdutyB=0;
-	if(Set_highdutyA>300) Set_highdutyA=0;
-	if(Set_highdutyA<(-300)) Set_highdutyA=0;
-	if(Set_highdutyB>300) Set_highdutyB=0;
-	if(Set_highdutyB<(-300)) Set_highdutyB=0;
-	if(Set_highdutyA>70) Set_highdutyA=70;
-	if(Set_highdutyA<(-70)) Set_highdutyA=-70;
-	if(Set_highdutyB>70) Set_highdutyB=70;
-	if(Set_highdutyB<(-70)) Set_highdutyB=-70;
-	HighdutyA = -(Set_highdutyA/100.0)*200.0;
-	HighdutyB = -(Set_highdutyB/100.0)*200.0;
-	if((HighdutyA<0)&&(HighdutyA>=(-200)))
+	if(Set_highdutyA>600) Set_highdutyA=0;
+	if(Set_highdutyA<(-600)) Set_highdutyA=0;
+	if(Set_highdutyB>600) Set_highdutyB=0;
+	if(Set_highdutyB<(-600)) Set_highdutyB=0;
+	if(Set_highdutyA>190) Set_highdutyA=190;
+	if(Set_highdutyA<(-190)) Set_highdutyA=-190;
+	if(Set_highdutyB>190) Set_highdutyB=190;
+	if(Set_highdutyB<(-190)) Set_highdutyB=-190;
+	if((Set_highdutyA<-0)&&(Set_highdutyA>=(-200)))
 	{
-		MCF_PWM_PWMPOL&=~MCF_PWM_PWMPOL_PPOL1;
-		MCF_PWM_PWMPOL|=MCF_PWM_PWMPOL_PPOL2;
-		MCF_PWM_PWMDTY(1)=200;//-(100+HighdutyA-MOTOR_DEAD);
-		MCF_PWM_PWMDTY(2)=-(HighdutyA-MOTOR_DEAD_B);
+		MCF_GPIO_PORTTA|=MCF_GPIO_PORTTA_PORTTA0;
+		MCF_PWM_PWMDTY(2)=(int)(200+Set_highdutyA-MOTOR_DEAD_B);
 	}
-	else if((HighdutyA>0)&&(HighdutyA<=200))
+	else if((Set_highdutyA>0)&&(Set_highdutyA<=200))
 	{
-		MCF_PWM_PWMPOL|=MCF_PWM_PWMPOL_PPOL1;
-		MCF_PWM_PWMPOL&=~MCF_PWM_PWMPOL_PPOL2;
-		MCF_PWM_PWMDTY(1)=200;//HighdutyA+MOTOR_DEAD;
-		MCF_PWM_PWMDTY(2)=HighdutyA+MOTOR_DEAD_F;	
+		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA0;
+		MCF_PWM_PWMDTY(2)=(int)(Set_highdutyA+MOTOR_DEAD_F);	
 	}
 	else MCF_PWM_PWMDTY(2)=0;
-	if((HighdutyB<0)&&(HighdutyB>=(-200)))
+	if((Set_highdutyB<-0)&&(Set_highdutyB>=(-200)))
 	{
-		MCF_PWM_PWMPOL&=~MCF_PWM_PWMPOL_PPOL3;
-		MCF_PWM_PWMPOL|=MCF_PWM_PWMPOL_PPOL4;
-		MCF_PWM_PWMDTY(3)=200;//-(100+HighdutyB-MOTOR_DEAD);
-		MCF_PWM_PWMDTY(4)=-(HighdutyB-MOTOR_DEAD_B);	
+		MCF_GPIO_PORTTA|=MCF_GPIO_PORTTA_PORTTA1;
+		MCF_PWM_PWMDTY(4)=(int)(200+Set_highdutyB-MOTOR_DEAD_B);	
 	}
-	else if((HighdutyB>0)&&(HighdutyB<=200))
+	else if((Set_highdutyB>0)&&(Set_highdutyB<=200))
 	{
-		MCF_PWM_PWMPOL|=MCF_PWM_PWMPOL_PPOL3;
-		MCF_PWM_PWMPOL&=~MCF_PWM_PWMPOL_PPOL4;
-		MCF_PWM_PWMDTY(3)=200;//ighdutyB+MOTOR_DEAD;
-		MCF_PWM_PWMDTY(4)=HighdutyB+MOTOR_DEAD_F;	
+		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA1;
+		MCF_PWM_PWMDTY(4)=(int)(Set_highdutyB+MOTOR_DEAD_F);	
 	}
 	else MCF_PWM_PWMDTY(4)=0;
 }
@@ -174,38 +173,19 @@ void speed_out(float target_speed)
 	float SpeedA_out=0,SpeedB_out=0,tempA_error=0,tempB_error=0;
 	tempA_error=Car_speed- target_speed;
 	tempB_error=Car_speed- target_speed;
-	if((tempA_error<=20)&&(tempA_error>=-20))
-	{
-		Speed_L_PID.Error=target_speed-Car_speed;
-		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error+Speed_L_PID.Derivative*(Speed_L_PID.Error-2*Speed_L_PID.Error_L+Speed_L_PID.Error_P);
-		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
-		Speed_L_PID.Error_L=Speed_L_PID.Error;
-	}
-	else 
-	{
-		Speed_L_PID.Error=target_speed-Car_speed;
-		Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Derivative*(Speed_L_PID.Error-2*Speed_L_PID.Error_L+Speed_L_PID.Error_P);
-		Speed_L_PID.Error_P=Speed_L_PID.Error_L;
-		Speed_L_PID.Error_L=Speed_L_PID.Error;
-	}
-	if((tempB_error<=20)&&(tempB_error>=-20))
-	{
-		Speed_R_PID.Error=target_speed+-Car_speed;
-		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error+Speed_R_PID.Derivative*(Speed_R_PID.Error-2*Speed_R_PID.Error_L+Speed_R_PID.Error_P);
-		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
-		Speed_R_PID.Error_L=Speed_R_PID.Error;
-	}
-	else
-	{
-		Speed_R_PID.Error=target_speed-Car_speed;
-		Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+Speed_R_PID.Derivative*(Speed_R_PID.Error-2*Speed_R_PID.Error_L+Speed_R_PID.Error_P);
-		Speed_R_PID.Error_P=Speed_R_PID.Error_L;
-		Speed_R_PID.Error_L=Speed_R_PID.Error;
-	}
+	Speed_L_PID.Error=target_speed-Car_speed;
+	Speed_L_PID.Out-=Speed_L_PID.Proportion*(Speed_L_PID.Error-Speed_L_PID.Error_L)+Speed_L_PID.Integral*Speed_L_PID.Error+Speed_L_PID.Derivative*(Speed_L_PID.Error-2*Speed_L_PID.Error_L+Speed_L_PID.Error_P);
+	Speed_L_PID.Error_P=Speed_L_PID.Error_L;
+	Speed_L_PID.Error_L=Speed_L_PID.Error;
+
+	Speed_R_PID.Error=target_speed-Car_speed;
+	Speed_R_PID.Out-=Speed_R_PID.Proportion*(Speed_R_PID.Error-Speed_R_PID.Error_L)+ Speed_R_PID.Integral*Speed_R_PID.Error+Speed_R_PID.Derivative*(Speed_R_PID.Error-2*Speed_R_PID.Error_L+Speed_R_PID.Error_P);
+	Speed_R_PID.Error_P=Speed_R_PID.Error_L;
+	Speed_R_PID.Error_L=Speed_R_PID.Error;
 }
 void Dir_control()
 {
-	Dir_PID.Out=Dir_PID.Proportion*Dir_PID.Error;
-	Set_left_speed=Dir_PID.Out;
-	Set_right_speed=-Dir_PID.Out;
+	Dir.Out=Dir.Qk*Dir.k+Dir.QB*Dir.b;
+	Set_left_speed=Dir.Out;
+	Set_right_speed=-Dir.Out;
 }

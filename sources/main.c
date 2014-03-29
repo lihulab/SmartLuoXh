@@ -3,26 +3,42 @@ float Car_speed = 0;
 struct PID Speed_L_PID;
 struct PID Speed_R_PID;
 struct PID Angle_PID;
-struct PID Dir_PID;
+struct DIR Dir;
 char temp=0,graph_switch=0;//用于参数切换
+void Init_LED()
+{
+	MCF_GPIO_PUBPAR = MCF_GPIO_PUBPAR_UTXD1_GPIO      //设置PUB0~PUB3为通用IO。
+			     |MCF_GPIO_PUBPAR_URXD1_GPIO
+			     |MCF_GPIO_PUBPAR_URTS1_GPIO
+			     |MCF_GPIO_PUBPAR_UCTS1_GPIO;
+	MCF_GPIO_DDRUB = MCF_GPIO_DDRUB_DDRUB0           //设置PUB0~PUB3为输出接口。
+				    |MCF_GPIO_DDRUB_DDRUB1
+				    |MCF_GPIO_DDRUB_DDRUB2
+				    |MCF_GPIO_DDRUB_DDRUB3;
+}
+void Blink_LED1()
+{
+	if(MCF_GPIO_PORTUB&0x01) MCF_GPIO_PORTUB &= ~0x01;
+	else MCF_GPIO_PORTUB|=0x01;
+}
 int main(void)
 {
 	Angle_PID.Proportion = 27;
-	Angle_PID.Derivative = 0.2;
-	Speed_L_PID.Proportion = 3;
-	Speed_L_PID.Derivative = 0;
-	Speed_L_PID.Integral = 0.000;
+	Angle_PID.Derivative = 0.6;
+	Speed_L_PID.Proportion = 6;
+	Speed_L_PID.Derivative = 1.3;
+	Speed_L_PID.Integral = 0.00;
 	Speed_L_PID.Error_P = 0;
 	Speed_L_PID.Error_L = 0;
-	Speed_R_PID.Proportion = 3;
-	Speed_R_PID.Derivative = 0;
-	Speed_R_PID.Integral = 0.000;
+	Speed_R_PID.Proportion = 6;
+	Speed_R_PID.Derivative = 1.3;
+	Speed_R_PID.Integral = 0.00;
 	Speed_R_PID.Error_P = 0;
 	Speed_R_PID.Error_L = 0;
-	Dir_PID.Error = 0;
-	Dir_PID.Proportion = 2;
+	Dir.Qk=0;
+	Dir.QB=0;
 	pll_init_128M();
-	UART_INIT(0,128000000,57600,0);
+	UART_INIT(0,128000000,19200,0);
 	PWM_INIT();
 	init_PIT0();
 	init_ADC();
@@ -30,13 +46,14 @@ int main(void)
 	Coder_init();
 	init_key();
 	Init_OV7620_DMA();
+	Init_LED();
 	EnableInterrupts;
 	while(1)
 	{		
-		//LCD_P6x8float(0, 2, Left_motor_speed);
-		//LCD_P6x8float(0, 3, Right_motor_speed);
-		//LCD_P6x8float(0, 4, angle);
-		//LCD_P6x8float(0, 5, Angle_PID.Out);
+		LCD_P6x8float(0, 2, Left_motor_speed);
+		LCD_P6x8float(0, 3, Right_motor_speed);
+		LCD_P6x8float(0, 4, angle);
+		LCD_P6x8float(0, 5, Angle_PID.Out);
 		//LCD_P6x8int(40, 6, Valid_Line);
 		if(key1_press())
 		{
@@ -54,47 +71,48 @@ int main(void)
 			LCD_P6x8float(0, 1, Speed_L_PID.Integral);
 			if(key2_press())
 			{
-				Speed_L_PID.Proportion-=0.5;
-				Speed_R_PID.Proportion-=0.5;
+				Speed_L_PID.Proportion-=0.1;
+				Speed_R_PID.Proportion-=0.1;
 			}
 			if(key3_press())
 			{
-				Speed_L_PID.Integral-=0.01;
-				Speed_R_PID.Integral-=0.01;
+				Speed_L_PID.Integral-=0.001;
+				Speed_R_PID.Integral-=0.001;
 			}
 			if(key4_press())
 			{
-				Speed_L_PID.Proportion+=0.5;
-				Speed_R_PID.Proportion+=0.5;
+				Speed_L_PID.Proportion+=0.1;
+				Speed_R_PID.Proportion+=0.1;
 			}
 			if(key5_press())
 			{
-				Speed_L_PID.Integral+=0.01;
-				Speed_R_PID.Integral+=0.01;
+				Speed_L_PID.Integral+=0.001;
+				Speed_R_PID.Integral+=0.001;
 			}
 			LCD_P6x8Str(0, 6,"Speed");
 		}
 		if(temp==1)
 		{
-			LCD_P6x8float(0, 0, Angle_PID.Proportion);
-			LCD_P6x8float(0, 1, Angle_PID.Derivative);
+			LCD_P6x8float(0, 0, Dir.Qk);
+			LCD_P6x8float(0, 1, Dir.QB);
 			if(key2_press())
 			{
-				Angle_PID.Proportion+=0.5;
+				Dir.Qk+=0.05;
 			}
 			if(key3_press())
 			{
-				Angle_PID.Derivative+=0.01;
+				Dir.QB+=0.05;
 			}
 			if(key4_press())
 			{
-				Angle_PID.Derivative-=0.01;
+				Dir.Qk-=0.05;
 			}
 			if(key5_press())
 			{
-				Angle_PID.Proportion-=0.5;
+				Dir.QB-=0.05;
+			
 			}
-			LCD_P6x8Str(0, 6,"Angle");
+			LCD_P6x8Str(0, 6,"Direction");
 		}
 		if(temp==2)
 		{
@@ -112,9 +130,24 @@ int main(void)
 		}
 		if(temp==3)
 		{
-			LCD_P6x8float(0, 1, Dir_PID.Error);
+			//LCD_P6x8float(0, 1, Dir_PID.Error);
+			LCD_P6x8Str(0,0,"Set angle");
+			if(key2_press())
+			{
+				set_angle=angle;
+			}
 		}
-		Draw_BMP(40, 0, 120, 4, Image_bw[0]); 
+		Draw_BMP(40, 0, 120, 8, Image_disp[0]);
+		LCD_P6x8int(0, 7, Dir.k);
+		LCD_P6x8int(10, 7, Dir.b);
+		
+		//LCD_P6x8int(0, 7, Image_Edge[0][0]);
+		//LCD_P6x8int(10, 7, Image_Edge[0][1]);
 		//UART_SendImage();
+		//Blink_LED1();
+		UART_Sendgraph(0,0,Dir.Out);
+		//UART_Sendgraph(0,1,Dir.b);
+		UART_Sendgraph(0,2,Set_left_speed);
+		UART_Sendgraph(0,3,Set_right_speed);
 	}
 }
