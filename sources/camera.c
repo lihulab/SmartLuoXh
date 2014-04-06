@@ -13,7 +13,7 @@ unsigned char VSYN_Flag,HREF_Flag;
 unsigned int Point_C=0,Line_C=0,Line_ROW=0;
 unsigned char Valid_Line=45;//用于记录有效行数量
 unsigned char Right_miss_flag=0,Left_miss_flag=0;
-char Def_middle=COLUMN/2;
+unsigned char Def_middle;
 /*************************************
 /最小二乘法，入口参数：    
 /int x1 x2      需要处理的最小行到最大行       //必须保证x2〉x1
@@ -109,10 +109,82 @@ void Get_valid_line()
 	}
 	for(i=10;i<j-1;i++)
 	{
-		if(Mid[i]<10 || Mid[i]>70||fabs(Image_Edge[i][1]-Image_Edge[i][0])<10) break;
+		if(Mid[i]<10 || Mid[i]>70||fabs(Image_Edge[i][1]-Image_Edge[i][0])<7) break;
 	}
 	if(i>45) i=45;
 	Valid_Line=i;
+}
+void Find_bound()
+{
+	unsigned char Bound_l_lines=0,Bound_r_lines=0,Equal_value=0;
+	unsigned char i=5,Bound_l_start=0,Bound_l_end=0,Bound_r_start=0,Bound_r_end=0;
+	while(i<58)
+	{
+		if((Image_Edge[i][0]>=Image_Edge[i][1])||(fabs(Image_Edge[i][1]-Image_Edge[i][0])<10))
+		{
+			break;
+		}
+		i++;
+	}
+	Equal_value=i;   
+	if(Equal_value<=18)
+	{
+		Valid_Line=Equal_value;
+		return;
+	}
+	i=Equal_value;
+	while(i>18)
+	{
+		if((Image_Edge[i-1][0]>Image_Edge[i][0])&&((Image_Edge[i][0]<Image_Edge[i+1][0])||(Image_Edge[i][0]<Image_Edge[i+2][0])||(Image_Edge[i][0]<Image_Edge[i+3][0])||(Image_Edge[i][0]<Image_Edge[i+4][0])))
+		{
+			Bound_l_end=i;
+			break;
+		}
+		i--;
+	}
+	i=Equal_value;
+	while(i>18)
+	{
+		if((Image_Edge[i-1][1]<Image_Edge[i][1])&&((Image_Edge[i][1]>Image_Edge[i+1][1])||(Image_Edge[i][1]>Image_Edge[i+2][1])||(Image_Edge[i][1]>Image_Edge[i+3][1])||(Image_Edge[i][1]>Image_Edge[i+4][1])))
+		{
+			Bound_r_end=i;
+			break;
+		}
+		i--;
+	}
+	i=28;
+	while((Image_Edge[i][0]!=1)&&(i<Equal_value)) 
+		i++;
+	while((Image_Edge[i][0]==1)&&(i<Equal_value))
+		i++; 
+	if((Bound_l_end<i)&&(i!=Equal_value))
+	{
+		Bound_l_end=i;
+	}
+	i=28;
+	while((Image_Edge[i][1]!=78)&&(i<Equal_value))
+		i++;
+	while((Image_Edge[i][1]==78)&&(i<Equal_value))
+		i++;
+	if((Bound_r_end<i)&&(i!=Equal_value))
+	{
+		Bound_r_end=i;
+	}
+	if((Bound_r_end>=Bound_l_end)&&(Bound_r_end))
+	{
+		Valid_Line=Bound_r_end;
+		return;
+	}
+	if((Bound_r_end<Bound_l_end))
+	{
+		Valid_Line=Bound_l_end;
+		return;
+	}
+	else
+	{
+		Valid_Line=Equal_value;
+		return;
+	}
 }
 void Get_middle()
 {
@@ -134,12 +206,14 @@ void test(void)
 			Image_disp[i/8][j]&=~(1<<(i%8));
 		}
 	}
-	for(i=ROW-Valid_Line;i<ROW;i++)
+	for(i=0;i<ROW;i++)
 	{
 		Image_disp[i/8][Image_Edge[ROW-i-1][0]]|=(1<<(i%8));
 		Image_disp[i/8][Image_Edge[ROW-i-1][1]]|=(1<<(i%8));
-		//Image_disp[i/8][Image_Middle[i]]|=(1<<(i%8));
-		//Image_disp[i/8][Def_middle]|=(1<<(i%8));
+	}
+	for(i=0;i<COLUMN;i++)
+	{
+		Image_disp[(ROW-Valid_Line)/8][i]|=(1<<((ROW-Valid_Line)%8));
 	}
 }
 void Dynamic_threshold(void)
@@ -275,7 +349,7 @@ __declspec(interrupt:0) void EPORT1_inter(void)
 /************************************************************/
 __declspec(interrupt:0) void EPORT3_inter(void)
 {
-	unsigned char i,j;
+	char i,j;
 	MCF_EPORT_EPFR = MCF_EPORT_EPFR_EPF3;           //清除标志位
 	HREF_Flag = 1;
 	if((Line_C%4)==1)
@@ -295,7 +369,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 		/*前十行滤波*/
 		if(Line_ROW<30)
 		{
-			for(i=1;i<COLUMN-1;i++)
+			for(i=1;i<COLUMN-2;i++)
 			{
 				if((Image_bw[Line_ROW-1][i+1]==1)&&(Image_bw[Line_ROW-1][i-1]==1)) Image_bw[Line_ROW-1][i]=1;
 			}
@@ -303,7 +377,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 	}
 	else if((Line_C%4)==3)
 	{
-		/*提取边线*/
+		//提取边线
 		if((Line_ROW-1)==0) 
 		{
 			if(((Image_Edge[0][0]+Image_Edge[0][1])/2)==0) Def_middle=COLUMN/2;
@@ -311,23 +385,23 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 		}
 		else
 		{
-			Def_middle = (Image_Edge[Line_ROW-2][0]+Image_Edge[Line_ROW-2][1])/2;
+			Def_middle = (COLUMN*2-2- Image_Edge[Line_ROW-2][0]-Image_Edge[Line_ROW-2][1])/2;
 		}
-		for(i=Def_middle;i>1;i--)
+		for(i=Def_middle;i>0;i--)
 		{
 			if(Image_bw[Line_ROW-1][i]==0)
 			{
 				break;
 			}
-			Image_Edge[Line_ROW-1][0]=COLUMN-i;
+			Image_Edge[Line_ROW-1][1]=COLUMN-1-i;
 		}
-		for(i=Def_middle;i<COLUMN-2;i++)
+		for(i=Def_middle;i<=COLUMN-1;i++)
 		{
 			if(Image_bw[Line_ROW-1][i]==0)
 			{
 				break;
 			}
-			Image_Edge[Line_ROW-1][1]=COLUMN-i;
+			Image_Edge[Line_ROW-1][0]=COLUMN-1-i;
 		}
 	}
 	Line_C++;
@@ -348,8 +422,8 @@ __declspec(interrupt:0) void DMA0_inter(void)
 		Image_display();
 		Black_lvbo();
 		//Image_binaryzation();
-		//Edge_detect();
-		Get_valid_line();
+		//Get_valid_line();
+		Find_bound();
 		Calc_slope(0,(Valid_Line>45?45:Valid_Line));
 		//Get_middle();
 		//Calc_error();

@@ -1,6 +1,6 @@
 #include "main.h"
-char MOTOR_DEAD_F = 0;//电机的死区占空比
-char MOTOR_DEAD_B = 0;
+char MOTOR_DEAD_F = 10;//电机的死区占空比
+char MOTOR_DEAD_B = 7;
 float Right_motor_speed=0,Left_motor_speed=0;//左右轮测的的速度
 float Set_right_speed=0,Set_left_speed=0;
 float Set_speed=0;
@@ -47,18 +47,18 @@ void get_speed()//向前为正，向后为负
 {
 	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG1)==0) 
 	{
-		Left_motor_speed = Left_motor_speed*0.8+(1000-MCF_DMA_BCR(1)&0xffffff)*0.2;
+		Left_motor_speed = Left_motor_speed+(1000-MCF_DMA_BCR(1)&0xffffff)/5.0;
 	}
 	else
 	{
-		Left_motor_speed = Left_motor_speed*0.8-(1000 - MCF_DMA_BCR(1)&0xffffff)*0.2;
+		Left_motor_speed = Left_motor_speed-(1000 - MCF_DMA_BCR(1)&0xffffff)/5.0;
 		//Left_motor_speed = -Left_motor_speed;
 	}
-	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=Right_motor_speed*0.8+MCF_GPT_GPTPACNT*0.2;//要通过测量算出一个脉冲代表的距离
-	else Right_motor_speed = Right_motor_speed*0.8 -(MCF_GPT_GPTPACNT)*0.2;
+	if((MCF_GPIO_SETTG&MCF_GPIO_SETTG_SETTG2)==0) Right_motor_speed=Right_motor_speed+MCF_GPT_GPTPACNT/5.0;//要通过测量算出一个脉冲代表的距离
+	else Right_motor_speed = Right_motor_speed -(MCF_GPT_GPTPACNT/5.0);
 	MCF_GPT_GPTPACNT=0;
 	MCF_DMA_BCR(1)=1000;
-	Car_speed=(Right_motor_speed+Left_motor_speed)/2;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
+	Car_speed=(Right_motor_speed+Left_motor_speed)/2.0;//两轮的速度平均值作为车向前的速度，该速度作为车速度闭环的输入量
 
 }
 /************************************************************/
@@ -134,15 +134,15 @@ void PWM_INIT(void)
 }
 void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负为向后走
 {
-	if(Set_highdutyA>600) Set_highdutyA=0;
-	if(Set_highdutyA<(-600)) Set_highdutyA=0;
-	if(Set_highdutyB>600) Set_highdutyB=0;
-	if(Set_highdutyB<(-600)) Set_highdutyB=0;
-	if(Set_highdutyA>190) Set_highdutyA=190;
-	if(Set_highdutyA<(-190)) Set_highdutyA=-190;
-	if(Set_highdutyB>190) Set_highdutyB=190;
-	if(Set_highdutyB<(-190)) Set_highdutyB=-190;
-	if((Set_highdutyA<-0)&&(Set_highdutyA>=(-200)))
+	if((Set_highdutyA>190)&&(Set_highdutyA<300)) Set_highdutyA=190;
+	else if(Set_highdutyA>=300) Set_highdutyA=0;
+	if((Set_highdutyA<(-190))&&(Set_highdutyA>(-300)))  Set_highdutyA=-190;
+	else if(Set_highdutyA<=(-300)) Set_highdutyA=0;
+	if((Set_highdutyB>190)&&(Set_highdutyB<300)) Set_highdutyB=190;
+	else if(Set_highdutyB>=300) Set_highdutyB=0;
+	if((Set_highdutyB<(-190))&&(Set_highdutyB>(-300))) Set_highdutyB=-190;
+	else if(Set_highdutyB<=(-300)) Set_highdutyB=0;
+	if((Set_highdutyA<0)&&(Set_highdutyA>=(-200)))
 	{
 		MCF_GPIO_PORTTA|=MCF_GPIO_PORTTA_PORTTA0;
 		MCF_PWM_PWMDTY(2)=(int)(200+Set_highdutyA-MOTOR_DEAD_B);
@@ -152,8 +152,12 @@ void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负
 		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA0;
 		MCF_PWM_PWMDTY(2)=(int)(Set_highdutyA+MOTOR_DEAD_F);	
 	}
-	else MCF_PWM_PWMDTY(2)=0;
-	if((Set_highdutyB<-0)&&(Set_highdutyB>=(-200)))
+	else
+	{
+		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA0;
+		MCF_PWM_PWMDTY(2)=0;
+	}
+	if((Set_highdutyB<0)&&(Set_highdutyB>=(-200)))
 	{
 		MCF_GPIO_PORTTA|=MCF_GPIO_PORTTA_PORTTA1;
 		MCF_PWM_PWMDTY(4)=(int)(200+Set_highdutyB-MOTOR_DEAD_B);	
@@ -163,7 +167,11 @@ void set_motor_highduty(float Set_highdutyA,float Set_highdutyB)//正为向前走，负
 		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA1;
 		MCF_PWM_PWMDTY(4)=(int)(Set_highdutyB+MOTOR_DEAD_F);	
 	}
-	else MCF_PWM_PWMDTY(4)=0;
+	else
+	{
+		MCF_GPIO_PORTTA&=~MCF_GPIO_PORTTA_PORTTA1;
+		MCF_PWM_PWMDTY(4)=0;
+	}
 }
 //-----------------------------------------------
 //计算根据速度的pid输出值
