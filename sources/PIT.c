@@ -33,6 +33,7 @@ void init_PIT0(void)
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;     //使能中断功能
 	MCF_INTC0_IMRH&=~MCF_INTC_IMRH_INT_MASK55;  //使能PIT0中断
 	MCF_INTC0_ICR55=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(2); //设置PIT0中断优先级
+	//MCF_INTC0_ICR55=MCF_INTC_ICR_IP(6)+MCF_INTC_ICR_IL(6); 
 	                          //IL可设置7个级别，IP设置每个级别中的优先级。
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_EN;    //使能PIT0   
 }
@@ -68,23 +69,25 @@ __declspec(interrupt:0) void PIT0_inter(void)//interrupt source 55
 	i++;
 	MCF_PIT_PCSR(0)|=MCF_PIT_PCSR_PIF;//清除PIT标志位
 	Blink_LED1();
-	get_gyro();
-	get_gravity();
-	//get_gyro_angle();
+	Get_Gyro();
+	Get_Gravity();
+	Get_Gyro_Angle();
 	Kalman_Filter();
-	angle_out();
+	Angle_Out();
 	Dir_control();
 	get_speed();
 	if(i==5)
 	{
+		Car_speed=(Right_motor_speed+Left_motor_speed)/2.0;
 		speed_out(Set_speed);
+		//speed_out_angle(Set_speed);
 		Right_motor_speed=0;
 		Left_motor_speed=0;
 		i=0;
 	}
-	set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out+Set_left_speed,Speed_R_PID.Out-Angle_PID.Out+Set_right_speed);
+	set_motor_highduty(Speed_L_PID.Out+Angle_PID.Out+Set_left_speed,Speed_R_PID.Out+Angle_PID.Out+Set_right_speed);
 	//set_motor_highduty(Set_left_speed,Set_right_speed);
-	//set_motor_highduty(Set_speed,Set_speed);
+	//set_motor_highduty(2500,2500);
 	//set_motor_highduty(Speed_L_PID.Out-Angle_PID.Out,Speed_R_PID.Out-Angle_PID.Out);
 	//set_motor_highduty(-Angle_PID.Out+Set_left_speed,-Angle_PID.Out+Set_right_speed);
 	//set_motor_highduty(Speed_L_PID.Out,Speed_R_PID.Out);

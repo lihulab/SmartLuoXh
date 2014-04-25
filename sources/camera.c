@@ -1,19 +1,196 @@
-/*
- * main implementation: use this sample to create your own application
- *
- */
 #include "main.h"
-unsigned char Image_Data[ROW][COLUMN];//采集到的图像数组，起始点喂左上角
-unsigned char Image_bw[ROW][COLUMN];
-unsigned char Image_disp[ROW/8+1][COLUMN];
-unsigned char Image_Edge[ROW][2];
-unsigned char Image_Middle[ROW];
-unsigned char Image_T=100;//二值化图像的值
-unsigned char VSYN_Flag,HREF_Flag;
-unsigned int Point_C=0,Line_C=0,Line_ROW=0;
-unsigned char Valid_Line=45;//用于记录有效行数量
-unsigned char Right_miss_flag=0,Left_miss_flag=0;
-unsigned char Def_middle;
+void Cross_err_find_and_rectify()
+{
+  int i=2,a=2,flag=0,mid,j,temp;
+  while((i<Valid_Line+6)&&(i<53))
+  {
+    i++;
+    if(((Image_Edge[i+1][0]-Image_Edge[i][0])>20)&&((Image_Edge[i+2][0]-Image_Edge[i+1][0])>a)&&((Image_Edge[i+3][0]-Image_Edge[i+2][0])>a))
+    {
+      flag=1;
+      break;
+    }
+    if(((Image_Edge[i][1]-Image_Edge[i+1][1])>20)&&((Image_Edge[i+1][1]-Image_Edge[i+2][1])>a)&&((Image_Edge[i+2][1]-Image_Edge[i+3][1])>a))
+    {
+      flag=2;
+      break;
+    }
+  }
+    if(flag==1)
+    {
+      mid=(Image_Edge[i+1][0]+Image_Edge[i][0])/2;
+      while(i<59)
+      {
+ 
+        temp=i+1;
+        Black_flag[temp] = 0;  //清除所有标志
+        for(j= mid ;j>1;j--)
+          if(Image_bw[temp][j]==0)
+            if(Image_bw[temp][j-1]==0)
+            {
+              if(temp>45)                  //后15行识别两点即黑线
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+              else if(Image_bw[temp][j-2]==0)
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+            }             
+        Image_Edge[temp][0]=j;
+        for(j=mid;j<316;j++)
+          if(Image_bw[temp][j]==0)
+            if(Image_bw[temp][j+1]==0)
+            {                              //后15行识别两点即黑线
+              if(temp>45)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+              else if(Image_bw[temp][j+2]==0)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+                
+            }
+      Image_Edge[temp][1]=j;   
+      mid=(Image_Edge[temp][0]+Image_Edge[temp][1])/2; 
+      i++; 
+      }
+      Black_lvbo();//滤波
+    }
+    
+    
+    
+    if(flag==2)
+    {
+      mid=(Image_Edge[i+1][1]+Image_Edge[i][1])/2;
+      while(i<59)
+      {
+
+        temp=i+1;
+        Black_flag[temp] = 0;  //清除所有标志
+        for(j= mid ;j>1;j--)
+          if(Image_Data[temp][j]==0)
+            if(Image_Data[temp][j-1]==0)
+            {
+              if(temp>45)                  //后15行识别两点即黑线
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+              else if(Image_Data[temp][j-2]==0)
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+            }             
+        [temp]=j;
+        for(j=mid;j<316;j++)
+          if(Data_0_1[temp][j]==0)
+            if(Data_0_1[temp][j+1]==0)
+            {                              //后15行识别两点即黑线
+              if(temp>45)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+              else if(Data_0_1[temp][j+2]==0)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+                
+            }
+        Black_r[temp]=j; 
+        
+        
+        
+        
+        
+        
+     ////////////////////////////////////////////////////////////////   
+        
+        
+        
+        
+        
+      mid=(Black_l[temp]+Black_r[temp])/2;
+      i++;
+        
+      }
+      Black_lvbo();//滤波
+    }
+  }
+void Cross_err_find_and_rectify_pre()
+{
+  int i=4,j,temp,mid,flag=0,eq=4;
+  while((eq<53)&&(Black_l[eq]!=Black_r[eq]))
+  {
+    eq++;
+  }
+  
+  while(i++<eq)
+  { 
+    if((((Black_l[i+1]-Black_l[i-1])>100)&&((Black_r[i-1]-Black_r[i+1])>100))     ||    (((Black_l[i+1]-Black_l[i-1])>100)&&(Black_r[i-1]<16))     ||        (((Black_r[i-1]-Black_r[i+1])>100)&&(Black_l[i-1]>300))     )
+    {
+      flag=1; 
+      break;
+    }
+  }
+  if(flag==1)
+  {
+      if((Black_l[i+1]+Black_r[i+1])>317)
+        mid=(Black_l[i+1]+Black_l[i-1])/2;
+      else
+        mid=(Black_r[i+1]+Black_r[i-1])/2;
+      while(i<59)
+      {  
+        temp=i+1;
+        Black_flag[temp] = 0;  //清除所有标志
+        for(j= mid ;j>1;j--)
+          if(Data_0_1[temp][j]==0)
+            if(Data_0_1[temp][j-1]==0)
+            {
+              if(temp>45)                  //后15行识别两点即黑线
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+              else if(Data_0_1[temp][j-2]==0)
+              {
+                Black_flag[temp] |= 0x01;
+                break;
+              }
+            }             
+        Black_l[temp]=j;
+        for(j=mid;j<316;j++)
+          if(Data_0_1[temp][j]==0)
+            if(Data_0_1[temp][j+1]==0)
+            {                              //后15行识别两点即黑线
+              if(temp>45)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+              else if(Data_0_1[temp][j+2]==0)
+              {
+                Black_flag[temp] |= 0x02;
+                break;
+              }
+                
+            }
+        Black_r[temp]=j; 
+   
+      mid=(Black_l[temp]+Black_r[temp])/2; 
+      i++;
+      }
+      Black_lvbo();//滤波
+    }
+}
 /*************************************
 /最小二乘法，入口参数：    
 /int x1 x2      需要处理的最小行到最大行       //必须保证x2〉x1
@@ -25,7 +202,9 @@ void Calc_slope(int x1, int x2)
 	int n=x2-x1+1;
 	int temp[60];
 	for(i=x1;i<=x2;i++)
-		temp[i]=((Image_Edge[i][0]+Image_Edge[i][1])/2-39.5)*75/(75-i)+39.5;//图像矫正
+		//temp[i]=((Image_Edge[i][0]+Image_Edge[i][1])/2-39.5)*75/(75-i)+39.5;//图像矫正
+		temp[i]=(Image_Middle[i]-39.5)*75/(75-i)+39.5;//图像矫正
+		//temp[i]=(Image_Middle[i]-39.5);
 	for(i=x1;i<=x2;i++) //先对数组中的中心位置移位，即图像的中心线认纵轴认为是x轴，水平线认为是y轴
 	{
 		line_xi+=i;           //x的累加和
@@ -35,10 +214,10 @@ void Calc_slope(int x1, int x2)
 	}
 	line_A=line_xi*line_yi;           //累加和的乘积
 	line_C=line_xi*line_xi;           //x累加和的平方
-	Dir.k=(int)((line_A-n*line_B)/(line_C-n*line_K)*100);
-	Dir.b=(int)((line_yi-Dir.k/100*line_xi)/n-40);
-
-
+	PID_k.Error_L=PID_k.Error;
+	PID_b.Error_L=PID_b.Error;
+	PID_k.Error=(int)((line_A-n*line_B)/(line_C-n*line_K)*100);
+	PID_b.Error=(int)((line_yi-PID_k.Error/100*line_xi)/n-40);
 	//Mid_err=Get_average(x1,x2);
 }
 
@@ -109,7 +288,7 @@ void Get_valid_line()
 	}
 	for(i=10;i<j-1;i++)
 	{
-		if(Mid[i]<10 || Mid[i]>70||fabs(Image_Edge[i][1]-Image_Edge[i][0])<7) break;
+		if(Mid[i]<10 || Mid[i]>70||fabs(Image_Edge[i][1]-Image_Edge[i][0])<10) break;
 	}
 	if(i>45) i=45;
 	Valid_Line=i;
@@ -189,17 +368,31 @@ void Find_bound()
 void Get_middle()
 {
 	char i;
-	//Valid_Line = 30;
-	for(i=ROW-1;i>=Valid_Line;i--)
+	for(i=0;i<ROW;i++)
 	{
-		Image_Middle[i]=(Image_Edge[i][0]+Image_Edge[i][1])/2;
+		if(Image_Edge[i][0]<=1)
+		{
+			if(Image_Edge[i][1]>=78) continue;
+			else Image_Middle[i]=Image_Edge[i][1]-Image_Distance[i][1];
+		}
+		else if(Image_Edge[i][1]>=78)
+		{
+			if(Image_Edge[i][0]<=1) continue;
+			else Image_Middle[i]=Image_Edge[i][0]+Image_Distance[i][0];
+		}
+		else
+		{
+			Image_Middle[i]=(Image_Edge[i][0]+Image_Edge[i][1])/2;
+			Image_Distance[i][0]=fabs(Image_Middle[i]-Image_Edge[i][0]);
+			Image_Distance[i][1]=fabs(Image_Edge[i][1]-Image_Middle[i]);
+		}
 	}
-	for(i=Valid_Line-1;i>=0;i--) Image_Middle[i]=0;
+	//for(i=Valid_Line;i<ROW;i++) Image_Middle[i]=0;
 }
 void test(void)
 {
 	unsigned char i,j;
-	for(i=0;i<ROW;i++)
+	for(i=0;i<ROW+1;i++)
 	{
 		for(j=0;j<COLUMN;j++)
 		{
@@ -210,6 +403,7 @@ void test(void)
 	{
 		Image_disp[i/8][Image_Edge[ROW-i-1][0]]|=(1<<(i%8));
 		Image_disp[i/8][Image_Edge[ROW-i-1][1]]|=(1<<(i%8));
+		Image_disp[i/8][Image_Middle[ROW-i-1]]|=(1<<(i%8));
 	}
 	for(i=0;i<COLUMN;i++)
 	{
@@ -309,21 +503,21 @@ void UART_SendImage()
 void EPORT_init(void)
 {
 	//使能IRQ1、3、5、7功能引脚
-	MCF_GPIO_PNQPAR = MCF_GPIO_PNQPAR_IRQ1_IRQ1
+	MCF_GPIO_PNQPAR |= MCF_GPIO_PNQPAR_IRQ1_IRQ1
 				     |MCF_GPIO_PNQPAR_IRQ3_IRQ3;
 
 	//设置上升沿触发中断		   
-	MCF_EPORT_EPPAR = MCF_EPORT_EPPAR_EPPA1_FALLING
+	MCF_EPORT_EPPAR |= MCF_EPORT_EPPAR_EPPA1_FALLING
 				 	 |MCF_EPORT_EPPAR_EPPA3_RISING;
 	//设置数据方向为输入
 	MCF_EPORT_EPDDR =0x00;
 
 	//使能1,3,5,7中断
-	MCF_EPORT_EPIER = MCF_EPORT_EPIER_EPIE1;
+	MCF_EPORT_EPIER |= MCF_EPORT_EPIER_EPIE1;
 					 //|MCF_EPORT_EPIER_EPIE3	
 
 	//清除1,3,5,7中断标志位
-	MCF_EPORT_EPFR = MCF_EPORT_EPFR_EPF1
+	MCF_EPORT_EPFR |= MCF_EPORT_EPFR_EPF1
 				    |MCF_EPORT_EPFR_EPF3;
 				   
 	//使能中断				   
@@ -363,7 +557,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 		/*二值化*/
 		for(j=0;j<COLUMN;j++)
 		{
-			if(Image_Data[Line_ROW-1][j]>Image_T) Image_bw[Line_ROW-1][j]=1;
+			if(Image_Data[Line_ROW-1][j]>(Image_T-10)) Image_bw[Line_ROW-1][j]=1;
 			else Image_bw[Line_ROW-1][j]=0;
 		}
 		/*前十行滤波*/
@@ -387,7 +581,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 		{
 			Def_middle = (COLUMN*2-2- Image_Edge[Line_ROW-2][0]-Image_Edge[Line_ROW-2][1])/2;
 		}
-		for(i=Def_middle;i>0;i--)
+		for(i=Def_middle;i>=0;i--)
 		{
 			if(Image_bw[Line_ROW-1][i]==0)
 			{
@@ -395,7 +589,7 @@ __declspec(interrupt:0) void EPORT3_inter(void)
 			}
 			Image_Edge[Line_ROW-1][1]=COLUMN-1-i;
 		}
-		for(i=Def_middle;i<=COLUMN-1;i++)
+		for(i=Def_middle;i<COLUMN;i++)
 		{
 			if(Image_bw[Line_ROW-1][i]==0)
 			{
@@ -418,17 +612,14 @@ __declspec(interrupt:0) void DMA0_inter(void)
 	{
 		MCF_EPORT_EPIER&=~MCF_EPORT_EPIER_EPIE3;
 		Line_ROW=0;
-		Dynamic_threshold();
-		Image_display();
 		Black_lvbo();
 		//Image_binaryzation();
 		//Get_valid_line();
 		Find_bound();
-		Calc_slope(0,(Valid_Line>45?45:Valid_Line));
+		Get_middle();
+		Calc_slope(0,Valid_Line);
 		//Get_middle();
 		//Calc_error();
-
-		if(graph_switch==0) test();
 		//LCD_CLS();
 	}
 }
@@ -552,7 +743,7 @@ void Init_OV7620_DMA()
 	MCF_GPIO_DDRTE = 0;
 	SCCB_Init();
 	SCCB_Bytewrite(0x42,0x14,0x24);
-	SCCB_Bytewrite(0x42,0x11,0x01);
+	SCCB_Bytewrite(0x42,0x11,0x00);
 	MCF_DMA_DSR(0) |= MCF_DMA_DSR_DONE;//清空传输完成标志位
 	MCF_SCM_MPR = MCF_SCM_MPR_MPR(0x05);
 	MCF_SCM_DMAREQC |= MCF_SCM_DMAREQC_DMAC0(0x04);//设定DMA0为DTIM0触发
@@ -575,6 +766,7 @@ void Init_OV7620_DMA()
 	MCF_DTIM_DTMR(0) |= MCF_DTIM_DTMR_RST;//开启DTIM
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_MASKALL;
 	MCF_INTC0_IMRL&=~MCF_INTC_IMRL_INT_MASK9;
-	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(6);
+	MCF_INTC0_ICR09=MCF_INTC_ICR_IP(6)+MCF_INTC_ICR_IL(6);
+	//MCF_INTC0_ICR09=MCF_INTC_ICR_IP(5)+MCF_INTC_ICR_IL(5);
 	EPORT_init();
 }

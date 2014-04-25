@@ -4,6 +4,8 @@ void Coder_init();
 void get_speed();
 void speed_out(float target_speed);
 void Dir_control();
+void speed_out_angle(float target_speed);
 extern float Right_motor_speed,Left_motor_speed;//左右轮测的的速度
 extern float Set_speed;
 extern float Set_right_speed,Set_left_speed;
+
